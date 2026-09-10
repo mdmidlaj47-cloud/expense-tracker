@@ -123,10 +123,20 @@ export default function App() {
     return recurring.filter(r => r.active && r.dueDay >= currentDay && r.dueDay <= currentDay + 3).length;
   }, [recurring]);
 
+  const getThemeBg = () => {
+    switch (settings.theme) {
+      case 'midnight': return 'bg-[#060b17] text-slate-100';
+      case 'sunset': return 'bg-[#0c0807] text-slate-100';
+      case 'light': return 'bg-slate-50 text-slate-900';
+      case 'amoled': return 'bg-black text-white';
+      default: return 'bg-slate-950 text-slate-100';
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex justify-center font-sans antialiased selection:bg-emerald-500 selection:text-white">
+    <div className={`min-h-screen ${getThemeBg()} flex justify-center font-sans antialiased selection:bg-emerald-500 selection:text-white transition-colors duration-300 theme-${settings.theme || 'emerald'}`}>
       {/* Mobile container - looks native on Android screen and cleanly framed on desktop */}
-      <div className="w-full max-w-md bg-slate-950 min-h-screen flex flex-col relative shadow-2xl border-x border-slate-800/40">
+      <div className={`w-full max-w-md ${getThemeBg()} min-h-screen flex flex-col relative shadow-2xl border-x border-slate-800/40 transition-colors duration-300`}>
         
         {/* App Header */}
         <Header
@@ -149,6 +159,8 @@ export default function App() {
               budgets={budgets}
               currency={settings.currency || '₹'}
               currentMonth={currentMonth}
+              theme={settings.theme || 'emerald'}
+              layout={settings.layout || 'classic'}
               onOpenAddModal={() => {
                 setEditingTransaction(null);
                 setIsAddModalOpen(true);

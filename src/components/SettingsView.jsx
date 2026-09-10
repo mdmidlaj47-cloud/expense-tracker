@@ -10,13 +10,17 @@ import {
   Check, 
   AlertTriangle,
   HelpCircle,
-  Sparkles
+  Sparkles,
+  Palette,
+  LayoutGrid
 } from 'lucide-react';
 import { 
   exportTransactionsToCSV, 
   exportBackupJSON, 
   restoreFromJSON, 
-  formatAmount 
+  formatAmount,
+  AVAILABLE_THEMES,
+  AVAILABLE_LAYOUTS
 } from '../utils/storage';
 
 export default function SettingsView({ 
@@ -92,6 +96,77 @@ export default function SettingsView({
           <li>Tap <strong>"Install app"</strong> or <strong>"Add to Home Screen"</strong>.</li>
           <li>A dedicated app icon will appear on your home screen with offline support!</li>
         </ol>
+      </div>
+
+      {/* Theme & Visual Appearance Selection */}
+      <div className="glass-card rounded-2xl p-4 border border-slate-800 space-y-3">
+        <div className="flex items-center justify-between">
+          <h4 className="text-xs font-bold text-white flex items-center space-x-1.5">
+            <Palette className="w-4 h-4 text-emerald-400" />
+            <span>Theme & Visual Style</span>
+          </h4>
+          <span className="text-[10px] text-slate-400 capitalize">{settings.theme || 'emerald'}</span>
+        </div>
+
+        <div className="grid grid-cols-1 gap-2 pt-1">
+          {AVAILABLE_THEMES.map((th) => {
+            const isSelected = (settings.theme || 'emerald') === th.id;
+            return (
+              <button
+                key={th.id}
+                onClick={() => onSaveSettings({ ...settings, theme: th.id })}
+                className={`p-2.5 rounded-xl border text-xs font-medium flex items-center justify-between transition ${
+                  isSelected
+                    ? 'border-emerald-500 bg-emerald-500/15 text-white font-bold ring-1 ring-emerald-500/40 shadow-sm'
+                    : 'border-slate-800 bg-slate-900/80 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <div className="flex items-center space-x-2.5">
+                  <div 
+                    className="w-6 h-6 rounded-lg border shadow-inner shrink-0" 
+                    style={{ backgroundColor: th.previewBg, borderColor: th.border }} 
+                  />
+                  <div className="text-left">
+                    <span className="block text-xs font-bold text-white">{th.name}</span>
+                    <span className="text-[10px] text-slate-400 block">{th.description}</span>
+                  </div>
+                </div>
+                {isSelected && <Check className="w-4 h-4 text-emerald-400 shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Dashboard Layout Selection */}
+      <div className="glass-card rounded-2xl p-4 border border-slate-800 space-y-3">
+        <h4 className="text-xs font-bold text-white flex items-center space-x-1.5">
+          <LayoutGrid className="w-4 h-4 text-emerald-400" />
+          <span>Dashboard Layout Style</span>
+        </h4>
+
+        <div className="grid grid-cols-2 gap-2 pt-1">
+          {AVAILABLE_LAYOUTS.map((lo) => {
+            const isSelected = (settings.layout || 'classic') === lo.id;
+            return (
+              <button
+                key={lo.id}
+                onClick={() => onSaveSettings({ ...settings, layout: lo.id })}
+                className={`p-3 rounded-xl border text-xs font-medium flex flex-col text-left transition ${
+                  isSelected
+                    ? 'border-emerald-500 bg-emerald-500/15 text-white font-bold ring-1 ring-emerald-500/40'
+                    : 'border-slate-800 bg-slate-900/80 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <div className="flex items-center justify-between w-full mb-1">
+                  <span className="text-xs font-bold text-white">{lo.name}</span>
+                  {isSelected && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+                </div>
+                <span className="text-[10px] text-slate-400 leading-tight">{lo.description}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Currency Selection */}

@@ -51,11 +51,26 @@ export const DEFAULT_RECURRING = [
   { id: 'rec_4', name: 'Netflix Subscription', amount: 499, categoryId: 'entertainment', dueDay: 20, paymentMethod: 'Card', active: true }
 ];
 
+export const AVAILABLE_THEMES = [
+  { id: 'emerald', name: 'Emerald Dark', description: 'Deep slate with glowing emerald & teal', color: '#10b981', previewBg: '#022c22', border: '#10b981' },
+  { id: 'midnight', name: 'Midnight Sapphire', description: 'Navy neon with electric blue & cyan glow', color: '#06b6d4', previewBg: '#0a192f', border: '#06b6d4' },
+  { id: 'sunset', name: 'Sunset Amber', description: 'Warm obsidian with glowing amber & gold', color: '#f59e0b', previewBg: '#2a1205', border: '#f59e0b' },
+  { id: 'amoled', name: 'AMOLED Pure Black', description: 'True 100% black background for maximum battery saving', color: '#ffffff', previewBg: '#000000', border: '#27272a' },
+  { id: 'light', name: 'Clean Minimal Light', description: 'Crisp porcelain white with soft sage green', color: '#059669', previewBg: '#f8fafc', border: '#cbd5e1' }
+];
+
+export const AVAILABLE_LAYOUTS = [
+  { id: 'classic', name: 'Classic Flow', description: 'Linear balance overview, budget progress & recent activity' },
+  { id: 'bento', name: 'Modern Bento Grid', description: 'Bento box cards with weekly spending mini-chart & budget health' }
+];
+
 export const DEFAULT_SETTINGS = {
   currency: '₹',
   currencyCode: 'INR',
   darkMode: true,
-  userName: 'Self'
+  userName: 'Self',
+  theme: 'emerald',
+  layout: 'classic'
 };
 
 // Generates starter transactions for the current month so the app is immediately alive

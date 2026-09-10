@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { 
   ArrowUpRight, 
   ArrowDownLeft, 
@@ -9,7 +9,10 @@ import {
   Plus, 
   Download, 
   Target,
-  Sparkles
+  Sparkles,
+  Calendar,
+  Activity,
+  Layers
 } from 'lucide-react';
 import { formatAmount, DEFAULT_CATEGORIES } from '../utils/storage';
 import CategoryIcon from './CategoryIcon';
@@ -19,6 +22,8 @@ export default function DashboardView({
   budgets, 
   currency = '₹', 
   currentMonth,
+  theme = 'emerald',
+  layout = 'classic',
   onOpenAddModal, 
   onSelectTransaction,
   onViewAllTransactions,
@@ -71,49 +76,126 @@ export default function DashboardView({
     .sort((a, b) => new Date(`${b.date}T${b.time || '00:00'}`) - new Date(`${a.date}T${a.time || '00:00'}`))
     .slice(0, 6);
 
+  // Weekly data for Bento layout (Monday to Sunday)
+  const weeklyStats = useMemo(() => {
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const today = new Date();
+    // find Monday of this week
+    const dayOfWeek = (today.getDay() + 6) % 7; // 0 = Mon, 6 = Sun
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - dayOfWeek);
+
+    const weekData = days.map((label, idx) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + idx);
+      const dStr = d.toISOString().slice(0, 10);
+      const spent = transactions
+        .filter(t => t.date === dStr && t.type === 'expense')
+        .reduce((s, t) => s + t.amount, 0);
+      return { label, spent, isToday: idx === dayOfWeek };
+    });
+
+    const maxSpent = Math.max(...weekData.map(w => w.spent), 100);
+    const totalWeek = weekData.reduce((s, w) => s + w.spent, 0);
+    return { weekData, maxSpent, totalWeek };
+  }, [transactions]);
+
+  // Top 3 category budget health for Bento layout
+  const topCategoryBudgets = useMemo(() => {
+    return DEFAULT_CATEGORIES
+      .filter(c => c.type === 'expense' && (budgets[c.id] || 0) > 0)
+      .map(c => {
+        const limit = budgets[c.id] || 1;
+        const spent = monthTransactions.filter(t => t.categoryId === c.id).reduce((s, t) => s + t.amount, 0);
+        const ratio = Math.min(1.2, spent / limit);
+        const percent = Math.round((spent / limit) * 100);
+        return { ...c, spent, limit, ratio, percent };
+      })
+      .slice(0, 3);
+  }, [budgets, monthTransactions]);
+
+  // Theme styling helpers
+  const getBalanceCardStyle = () => {
+    switch (theme) {
+      case 'midnight':
+        return 'bg-gradient-to-br from-[#0a192f] via-[#0f172a] to-[#020b18] border-cyan-500/30 shadow-cyan-950/40 text-white';
+      case 'sunset':
+        return 'bg-gradient-to-br from-[#2a1205] via-[#1a0c06] to-[#0f0704] border-amber-500/30 shadow-amber-950/40 text-white';
+      case 'light':
+        return 'bg-gradient-to-br from-emerald-50 via-white to-slate-50 border-emerald-300 text-slate-900 shadow-md shadow-emerald-950/5';
+      case 'amoled':
+        return 'bg-black border-zinc-800 text-white shadow-none';
+      case 'emerald':
+      default:
+        return 'bg-gradient-to-br from-emerald-950/70 via-slate-900 to-teal-950/60 border-emerald-500/20 shadow-emerald-950/20 text-white';
+    }
+  };
+
+  const getAccentTextColor = () => {
+    switch (theme) {
+      case 'midnight': return 'text-cyan-400';
+      case 'sunset': return 'text-amber-400';
+      case 'light': return 'text-emerald-600';
+      case 'amoled': return 'text-emerald-400';
+      default: return 'text-emerald-400';
+    }
+  };
+
+  const getAccentBgColor = () => {
+    switch (theme) {
+      case 'midnight': return 'bg-cyan-500';
+      case 'sunset': return 'bg-amber-500';
+      case 'light': return 'bg-emerald-600';
+      case 'amoled': return 'bg-emerald-500';
+      default: return 'bg-emerald-500';
+    }
+  };
+
   return (
     <div className="space-y-4 pb-24">
-      {/* Total Balance Card */}
-      <div className="relative overflow-hidden rounded-3xl p-5 bg-gradient-to-br from-emerald-950/70 via-slate-900 to-teal-950/60 border border-emerald-500/20 shadow-xl shadow-emerald-950/20">
-        <div className="absolute -right-6 -bottom-6 w-32 h-32 rounded-full bg-emerald-500/10 blur-2xl pointer-events-none" />
-        
-        <div className="flex items-center justify-between text-slate-300 text-xs font-medium mb-1">
+      {/* 1. Total Balance Hero Card */}
+      <div className={`relative overflow-hidden rounded-3xl p-5 border shadow-xl transition-all duration-300 ${getBalanceCardStyle()}`}>
+        <div className="flex items-center justify-between text-xs font-medium mb-1 opacity-80">
           <span className="flex items-center space-x-1.5">
-            <Wallet className="w-4 h-4 text-emerald-400" />
+            <Wallet className="w-4 h-4" />
             <span>Net Available Balance</span>
           </span>
           {savingsRate > 0 && (
-            <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-full border border-emerald-500/30 flex items-center space-x-1">
+            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border flex items-center space-x-1 ${
+              theme === 'light' 
+                ? 'bg-emerald-100 text-emerald-800 border-emerald-300' 
+                : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+            }`}>
               <Sparkles className="w-3 h-3" />
               <span>{savingsRate}% Saved</span>
             </span>
           )}
         </div>
 
-        <div className="text-3xl font-extrabold text-white tracking-tight mt-1 mb-4">
+        <div className="text-3xl font-extrabold tracking-tight mt-1 mb-4">
           {formatAmount(netBalance, currency)}
         </div>
 
-        {/* Month Summary pill indicators */}
-        <div className="grid grid-cols-2 gap-2.5 pt-3 border-t border-slate-800/80">
-          <div className="bg-slate-900/80 p-2.5 rounded-2xl border border-slate-800 flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center shrink-0">
+        {/* Month Flow Pills */}
+        <div className="grid grid-cols-2 gap-2.5 pt-3 border-t border-white/10">
+          <div className="p-2.5 rounded-2xl border border-white/10 bg-black/20 flex items-center space-x-2.5">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
               <ArrowDownLeft className="w-4 h-4 stroke-[2.5]" />
             </div>
             <div className="min-w-0">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">Income</span>
+              <span className="text-[10px] uppercase font-bold opacity-70 block">Income</span>
               <span className="text-xs font-bold text-emerald-400 truncate block">
                 {formatAmount(totalIncome, currency)}
               </span>
             </div>
           </div>
 
-          <div className="bg-slate-900/80 p-2.5 rounded-2xl border border-slate-800 flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-xl bg-rose-500/15 text-rose-400 flex items-center justify-center shrink-0">
+          <div className="p-2.5 rounded-2xl border border-white/10 bg-black/20 flex items-center space-x-2.5">
+            <div className="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0">
               <ArrowUpRight className="w-4 h-4 stroke-[2.5]" />
             </div>
             <div className="min-w-0">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">Spent</span>
+              <span className="text-[10px] uppercase font-bold opacity-70 block">Spent</span>
               <span className="text-xs font-bold text-rose-400 truncate block">
                 {formatAmount(totalExpense, currency)}
               </span>
@@ -122,63 +204,163 @@ export default function DashboardView({
         </div>
       </div>
 
-      {/* Monthly Budget Tracker Bar */}
-      <div 
-        onClick={() => onNavigateTab('more')} 
-        className="glass-card rounded-2xl p-4 border border-slate-800 hover:border-slate-700 transition cursor-pointer active-press"
-      >
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center space-x-2">
-            <div className="p-1.5 rounded-lg bg-emerald-500/15 text-emerald-400">
-              <Target className="w-4 h-4" />
+      {/* 2. LAYOUT VARIATION: CLASSIC vs BENTO GRID */}
+      {layout === 'bento' ? (
+        /* BENTO GRID LAYOUT */
+        <div className="space-y-3">
+          <div className="grid grid-cols-12 gap-3">
+            {/* Bento Tile 1: Weekly Spending Mini-Chart (7 cols) */}
+            <div 
+              onClick={() => onNavigateTab('analytics')}
+              className="col-span-7 glass-card rounded-2xl p-3.5 border border-slate-800 hover:border-slate-700 transition cursor-pointer active-press flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between text-[11px] font-bold text-slate-300 mb-1">
+                  <span>This Week</span>
+                  <span className={getAccentTextColor()}>{formatAmount(weeklyStats.totalWeek, currency)}</span>
+                </div>
+                <p className="text-[10px] text-slate-500">Weekly Overview</p>
+              </div>
+
+              {/* Mini Bar Chart */}
+              <div className="flex items-end justify-between h-20 pt-3 px-1 border-b border-slate-800/80">
+                {weeklyStats.weekData.map((w, idx) => {
+                  const h = Math.max(8, Math.round((w.spent / weeklyStats.maxSpent) * 100));
+                  return (
+                    <div key={idx} className="flex flex-col items-center flex-1 space-y-1">
+                      <div className="w-full flex justify-center items-end h-14">
+                        <div 
+                          className={`w-2.5 rounded-t transition-all ${
+                            w.isToday 
+                              ? `${getAccentBgColor()} shadow-sm` 
+                              : w.spent > 0 
+                              ? 'bg-slate-700' 
+                              : 'bg-slate-800/40'
+                          }`}
+                          style={{ height: `${h}%` }}
+                        />
+                      </div>
+                      <span className={`text-[8px] ${w.isToday ? 'font-bold text-white' : 'text-slate-500'}`}>
+                        {w.label[0]}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-            <div>
-              <h3 className="text-xs font-bold text-slate-200">Monthly Budget</h3>
-              <p className="text-[10px] text-slate-400">
-                {budgetRemaining > 0 
-                  ? `${formatAmount(budgetRemaining, currency)} left for ${daysLeft} days` 
-                  : 'Budget exceeded!'}
-              </p>
+
+            {/* Bento Tile 2: Category Budget Health Rings (5 cols) */}
+            <div 
+              onClick={() => onNavigateTab('more')}
+              className="col-span-5 glass-card rounded-2xl p-3 border border-slate-800 hover:border-slate-700 transition cursor-pointer active-press flex flex-col justify-between"
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[11px] font-bold text-slate-300">Budget</span>
+                <span className={`text-[10px] font-bold ${getAccentTextColor()}`}>{budgetPercent}%</span>
+              </div>
+
+              <div className="space-y-2 py-1">
+                {topCategoryBudgets.length === 0 ? (
+                  <p className="text-[10px] text-slate-500 italic py-2">No category limits configured</p>
+                ) : (
+                  topCategoryBudgets.map(cat => (
+                    <div key={cat.id} className="space-y-0.5">
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-slate-300 truncate max-w-[55px]">{cat.name}</span>
+                        <span className={cat.ratio >= 1.0 ? 'text-rose-400 font-bold' : 'text-slate-400 font-medium'}>
+                          {cat.percent}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-950 rounded-full h-1 overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full ${cat.ratio >= 1.0 ? 'bg-rose-500' : getAccentBgColor()}`}
+                          style={{ width: `${Math.min(100, cat.percent)}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <span className="text-[9px] text-slate-500 block text-right mt-1">Tap for details →</span>
             </div>
           </div>
-          <div className="text-right">
-            <span className={`text-xs font-bold ${
-              budgetRatio > 0.9 ? 'text-rose-400' : budgetRatio > 0.7 ? 'text-amber-400' : 'text-emerald-400'
-            }`}>
-              {budgetPercent}%
-            </span>
-            <ChevronRight className="w-3.5 h-3.5 text-slate-500 inline ml-1" />
+
+          {/* Bento Tile 3: Daily Velocity Strip */}
+          <div className="glass-card rounded-2xl px-4 py-2.5 border border-slate-800 flex items-center justify-between text-xs">
+            <span className="text-slate-400 text-[11px]">Daily Spending Burn:</span>
+            <div className="flex items-center space-x-3 text-xs font-semibold">
+              <span className="text-slate-200">Avg: {formatAmount(dailyAverage, currency)}/d</span>
+              <span className="text-slate-600">|</span>
+              <span className={getAccentTextColor()}>Safe: {formatAmount(dailySafeSpend, currency)}/d</span>
+            </div>
           </div>
         </div>
+      ) : (
+        /* CLASSIC FLOW LAYOUT */
+        <div 
+          onClick={() => onNavigateTab('more')} 
+          className="glass-card rounded-2xl p-4 border border-slate-800 hover:border-slate-700 transition cursor-pointer active-press"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center space-x-2">
+              <div className={`p-1.5 rounded-lg bg-emerald-500/15 ${getAccentTextColor()}`}>
+                <Target className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-xs font-bold text-slate-200">Monthly Budget</h3>
+                <p className="text-[10px] text-slate-400">
+                  {budgetRemaining > 0 
+                    ? `${formatAmount(budgetRemaining, currency)} left for ${daysLeft} days` 
+                    : 'Budget exceeded!'}
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <span className={`text-xs font-bold ${
+                budgetRatio > 0.9 ? 'text-rose-400' : budgetRatio > 0.7 ? 'text-amber-400' : getAccentTextColor()
+              }`}>
+                {budgetPercent}%
+              </span>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-500 inline ml-1" />
+            </div>
+          </div>
 
-        {/* Progress bar */}
-        <div className="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
-          <div 
-            className={`h-full rounded-full transition-all duration-500 ${
-              budgetRatio >= 1.0 
-                ? 'bg-rose-500' 
-                : budgetRatio > 0.75 
-                ? 'bg-amber-400' 
-                : 'bg-emerald-500'
-            }`}
-            style={{ width: `${budgetPercent}%` }}
-          />
+          {/* Progress bar */}
+          <div className="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+            <div 
+              className={`h-full rounded-full transition-all duration-500 ${
+                budgetRatio >= 1.0 
+                  ? 'bg-rose-500' 
+                  : budgetRatio > 0.75 
+                  ? 'bg-amber-400' 
+                  : getAccentBgColor()
+              }`}
+              style={{ width: `${budgetPercent}%` }}
+            />
+          </div>
+
+          {/* Daily Spending Velocity */}
+          <div className="flex items-center justify-between mt-2.5 pt-2 text-[11px] text-slate-400 border-t border-slate-800/60">
+            <span>Avg: <strong className="text-slate-200">{formatAmount(dailyAverage, currency)}/day</strong></span>
+            <span>Safe limit: <strong className={getAccentTextColor()}>{formatAmount(dailySafeSpend, currency)}/day</strong></span>
+          </div>
         </div>
+      )}
 
-        {/* Daily Spending Velocity */}
-        <div className="flex items-center justify-between mt-2.5 pt-2 text-[11px] text-slate-400 border-t border-slate-800/60">
-          <span>Avg: <strong className="text-slate-200">{formatAmount(dailyAverage, currency)}/day</strong></span>
-          <span>Safe limit: <strong className="text-emerald-400">{formatAmount(dailySafeSpend, currency)}/day</strong></span>
-        </div>
-      </div>
-
-      {/* Quick Action Buttons */}
+      {/* 3. Quick Action Buttons */}
       <div className="grid grid-cols-3 gap-2">
         <button
           onClick={onOpenAddModal}
-          className="p-3 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 flex flex-col items-center justify-center text-center active-press transition"
+          className={`p-3 rounded-2xl border text-slate-200 flex flex-col items-center justify-center text-center active-press transition ${
+            theme === 'midnight' 
+              ? 'bg-cyan-500/10 border-cyan-500/30' 
+              : theme === 'sunset' 
+              ? 'bg-amber-500/10 border-amber-500/30' 
+              : 'bg-emerald-500/15 border-emerald-500/30'
+          }`}
         >
-          <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center mb-1 shadow-md shadow-emerald-500/30">
+          <div className={`w-8 h-8 rounded-full text-white flex items-center justify-center mb-1 shadow-md ${getAccentBgColor()}`}>
             <Plus className="w-4 h-4 stroke-[3]" />
           </div>
           <span className="text-[11px] font-bold">Add Entry</span>
@@ -205,7 +387,7 @@ export default function DashboardView({
         </button>
       </div>
 
-      {/* Recent Transactions List */}
+      {/* 4. Recent Transactions List */}
       <div className="space-y-2">
         <div className="flex items-center justify-between px-1">
           <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
@@ -213,7 +395,7 @@ export default function DashboardView({
           </h3>
           <button 
             onClick={onViewAllTransactions}
-            className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center space-x-0.5 active-press"
+            className={`text-xs font-semibold ${getAccentTextColor()} flex items-center space-x-0.5 active-press`}
           >
             <span>See All</span>
             <ChevronRight className="w-3.5 h-3.5" />
@@ -225,7 +407,7 @@ export default function DashboardView({
             <p className="text-xs text-slate-400">No transactions recorded yet.</p>
             <button
               onClick={onOpenAddModal}
-              className="mt-2 text-xs font-bold text-emerald-400 underline"
+              className={`mt-2 text-xs font-bold ${getAccentTextColor()} underline`}
             >
               Log your first expense
             </button>
