@@ -67,9 +67,9 @@ export const AVAILABLE_LAYOUTS = [
 export const DEFAULT_SETTINGS = {
   currency: '₹',
   currencyCode: 'INR',
-  darkMode: true,
+  darkMode: false,
   userName: 'Self',
-  theme: 'emerald',
+  theme: 'light',
   layout: 'classic'
 };
 

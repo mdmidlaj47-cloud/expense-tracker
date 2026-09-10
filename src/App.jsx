@@ -133,10 +133,14 @@ export default function App() {
     }
   };
 
+  const currentTheme = settings.theme || 'light';
+
   return (
-    <div className={`min-h-screen ${getThemeBg()} flex justify-center font-sans antialiased selection:bg-emerald-500 selection:text-white transition-colors duration-300 theme-${settings.theme || 'emerald'}`}>
+    <div className={`min-h-screen ${getThemeBg()} flex justify-center font-sans antialiased selection:bg-emerald-200 selection:text-emerald-900 transition-colors duration-300 theme-${currentTheme}`}>
       {/* Mobile container - looks native on Android screen and cleanly framed on desktop */}
-      <div className={`w-full max-w-md ${getThemeBg()} min-h-screen flex flex-col relative shadow-2xl border-x border-slate-800/40 transition-colors duration-300`}>
+      <div className={`w-full max-w-md ${getThemeBg()} min-h-screen flex flex-col relative shadow-2xl transition-colors duration-300 ${
+        currentTheme === 'light' ? 'border-x border-slate-200/90 shadow-slate-900/8' : 'border-x border-slate-800/40'
+      }`}>
         
         {/* App Header */}
         <Header
@@ -145,6 +149,7 @@ export default function App() {
           availableMonths={availableMonths}
           budgetStatus={budgetStatus}
           pendingRecurringCount={pendingRecurringCount}
+          theme={currentTheme}
           onOpenRecurring={() => {
             setActiveTab('more');
             setManageSubTab('recurring');
@@ -159,7 +164,7 @@ export default function App() {
               budgets={budgets}
               currency={settings.currency || '₹'}
               currentMonth={currentMonth}
-              theme={settings.theme || 'emerald'}
+              theme={currentTheme}
               layout={settings.layout || 'classic'}
               onOpenAddModal={() => {
                 setEditingTransaction(null);
@@ -215,6 +220,7 @@ export default function App() {
         {/* Bottom Navigation */}
         <BottomNav
           activeTab={activeTab}
+          theme={currentTheme}
           onTabChange={(tab) => {
             setActiveTab(tab);
             if (tab === 'more' && manageSubTab !== 'budgets' && manageSubTab !== 'recurring' && manageSubTab !== 'settings') {
@@ -237,6 +243,7 @@ export default function App() {
           onSave={handleSaveTransaction}
           initialData={editingTransaction}
           currency={settings.currency || '₹'}
+          theme={currentTheme}
         />
       </div>
     </div>

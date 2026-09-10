@@ -10,6 +10,7 @@
   body {
     overscroll-behavior-y: none;
     -webkit-font-smoothing: antialiased;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   }
 }
 
@@ -24,47 +25,11 @@
 
 /* Smooth ripple and active feedback */
 .active-press:active {
-  transform: scale(0.96);
+  transform: scale(0.97);
   transition: transform 0.1s ease-in-out;
 }
 
-/* Theme containers */
-.theme-emerald {
-  --bg-primary: #020617;
-  --card-bg: rgba(30, 41, 59, 0.6);
-  --card-border: rgba(255, 255, 255, 0.08);
-  --accent: #10b981;
-}
-
-.theme-midnight {
-  --bg-primary: #060b17;
-  --card-bg: rgba(14, 23, 42, 0.8);
-  --card-border: rgba(6, 182, 212, 0.2);
-  --accent: #06b6d4;
-}
-
-.theme-sunset {
-  --bg-primary: #0c0807;
-  --card-bg: rgba(28, 19, 16, 0.8);
-  --card-border: rgba(245, 158, 11, 0.2);
-  --accent: #f59e0b;
-}
-
-.theme-amoled {
-  --bg-primary: #000000;
-  --card-bg: #09090b;
-  --card-border: #27272a;
-  --accent: #10b981;
-}
-
-.theme-light {
-  --bg-primary: #f8fafc;
-  --card-bg: #ffffff;
-  --card-border: #e2e8f0;
-  --accent: #059669;
-}
-
-/* Glassmorphism utility */
+/* Glassmorphism utilities */
 .glass {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -73,4 +38,88 @@
 .glass-card {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+}
+
+/* THEME SPECIFIC OVERRIDES */
+
+/* Clean Minimal Light Theme (Apple / Scandinavian Fintech) */
+.theme-light {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+.theme-light .glass {
+  background: rgba(248, 250, 252, 0.88);
+  border-color: #e2e8f0;
+}
+
+.theme-light .glass-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 1px 4px 0 rgba(15, 23, 42, 0.04), 0 2px 8px -2px rgba(15, 23, 42, 0.03);
+}
+
+.theme-light .text-white {
+  color: #0f172a;
+}
+
+.theme-light .text-slate-300,
+.theme-light .text-slate-200 {
+  color: #334155;
+}
+
+.theme-light .text-slate-400 {
+  color: #64748b;
+}
+
+.theme-light .text-slate-500 {
+  color: #94a3b8;
+}
+
+.theme-light .bg-slate-900,
+.theme-light .bg-slate-950 {
+  background-color: #f1f5f9;
+}
+
+.theme-light .border-slate-800,
+.theme-light .border-slate-700 {
+  border-color: #e2e8f0;
+}
+
+/* Sage Green Hero Card for Scandinavian Theme */
+.sage-hero-card {
+  background: linear-gradient(135deg, #cde3d6 0%, #e2eee7 50%, #d5e6dc 100%);
+  border: 1px solid #b7d6c6;
+  box-shadow: 0 4px 18px -4px rgba(40, 116, 80, 0.12);
+}
+
+/* Dark Themes defaults */
+.theme-emerald,
+.theme-midnight,
+.theme-sunset,
+.theme-amoled {
+  color: #f8fafc;
+}
+
+.theme-emerald .glass {
+  background: rgba(15, 23, 42, 0.75);
+}
+.theme-emerald .glass-card {
+  background: rgba(30, 41, 59, 0.6);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.theme-midnight .glass-card {
+  background: rgba(14, 23, 42, 0.8);
+  border-color: rgba(6, 182, 212, 0.2);
+}
+
+.theme-sunset .glass-card {
+  background: rgba(28, 19, 16, 0.8);
+  border-color: rgba(245, 158, 11, 0.2);
+}
+
+.theme-amoled .glass-card {
+  background: #09090b;
+  border-color: #27272a;
 }
