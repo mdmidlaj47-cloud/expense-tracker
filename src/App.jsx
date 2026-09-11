@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Header from './components/Header';
 import BottomNav from './components/BottomNav';
 import DashboardView from './components/DashboardView';
@@ -9,12 +9,13 @@ import AddTransactionModal from './components/AddTransactionModal';
 import { 
   getStoredTransactions, 
   saveStoredTransactions,
-  getStoredBudgets,
+  getStoredBudgets, 
   saveStoredBudgets,
-  getStoredRecurring,
+  getStoredRecurring, 
   saveStoredRecurring,
-  getStoredSettings,
-  saveStoredSettings
+  getStoredSettings, 
+  saveStoredSettings,
+  loadStarterSampleData
 } from './utils/storage';
 
 export default function App() {
@@ -26,6 +27,25 @@ export default function App() {
   const [manageSubTab, setManageSubTab] = useState('budgets');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
+  const [toastMessage, setToastMessage] = useState(null);
+
+  // Refs for tracking navigation state in popstate listener without stale closures
+  const activeTabRef = useRef(activeTab);
+  const manageSubTabRef = useRef(manageSubTab);
+  const isAddModalOpenRef = useRef(isAddModalOpen);
+  const lastBackPressTimeRef = useRef(0);
+
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
+
+  useEffect(() => {
+    manageSubTabRef.current = manageSubTab;
+  }, [manageSubTab]);
+
+  useEffect(() => {
+    isAddModalOpenRef.current = isAddModalOpen;
+  }, [isAddModalOpen]);
 
   // Current Month State (Format: YYYY-MM)
   const [currentMonth, setCurrentMonth] = useState(() => {
@@ -40,6 +60,80 @@ export default function App() {
     setRecurring(getStoredRecurring());
     setSettings(getStoredSettings());
   }, []);
+
+  // History & Mobile Back Button Navigation System
+  useEffect(() => {
+    // Replace initial state with root state
+    window.history.replaceState({ app: 'rupya', tab: 'dashboard', subTab: 'budgets', modal: false }, '');
+
+    const handlePopState = (event) => {
+      // 1. If transaction modal is open, close it and stay on current page
+      if (isAddModalOpenRef.current) {
+        setIsAddModalOpen(false);
+        setEditingTransaction(null);
+        return;
+      }
+
+      // 2. If inside Manage and in a sub-tab (bills or settings), go back to budgets sub-tab
+      if (activeTabRef.current === 'more' && manageSubTabRef.current !== 'budgets') {
+        setManageSubTab('budgets');
+        return;
+      }
+
+      // 3. If on another main tab (records, insights, manage), go back to dashboard
+      if (activeTabRef.current !== 'dashboard') {
+        const target = event.state?.tab || 'dashboard';
+        setActiveTab(target);
+        if (event.state?.subTab) setManageSubTab(event.state.subTab);
+        return;
+      }
+
+      // 4. We are on dashboard with no modals: prevent accidental app exit on mobile
+      const now = Date.now();
+      if (now - lastBackPressTimeRef.current > 2000) {
+        lastBackPressTimeRef.current = now;
+        // Re-push root state so user must press back twice quickly to exit
+        window.history.pushState({ app: 'rupya', tab: 'dashboard', subTab: 'budgets', modal: false }, '');
+        setToastMessage('Press back again to exit');
+        setTimeout(() => setToastMessage(null), 2000);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Navigation handlers that maintain history stack
+  const handleTabChange = (newTab) => {
+    if (newTab === activeTab) return;
+    setActiveTab(newTab);
+    if (newTab === 'more' && manageSubTab !== 'budgets' && manageSubTab !== 'recurring' && manageSubTab !== 'settings') {
+      setManageSubTab('budgets');
+    }
+    window.history.pushState({ app: 'rupya', tab: newTab, subTab: manageSubTab, modal: false }, '');
+  };
+
+  const handleSubTabChange = (newSubTab) => {
+    if (newSubTab === manageSubTab) return;
+    setManageSubTab(newSubTab);
+    window.history.pushState({ app: 'rupya', tab: 'more', subTab: newSubTab, modal: false }, '');
+  };
+
+  const handleOpenAddModal = (tx = null) => {
+    setEditingTransaction(tx);
+    setIsAddModalOpen(true);
+    window.history.pushState({ app: 'rupya', tab: activeTab, subTab: manageSubTab, modal: true }, '');
+  };
+
+  const handleCloseAddModal = () => {
+    if (isAddModalOpen) {
+      setIsAddModalOpen(false);
+      setEditingTransaction(null);
+      if (window.history.state?.modal) {
+        window.history.back();
+      }
+    }
+  };
 
   // Compute available months for dropdown (current month + past 11 months)
   const availableMonths = useMemo(() => {
@@ -65,7 +159,7 @@ export default function App() {
     }
     setTransactions(updated);
     saveStoredTransactions(updated);
-    setEditingTransaction(null);
+    handleCloseAddModal();
   };
 
   const handleDeleteTransaction = (id) => {
@@ -75,8 +169,7 @@ export default function App() {
   };
 
   const handleEditClick = (tx) => {
-    setEditingTransaction(tx);
-    setIsAddModalOpen(true);
+    handleOpenAddModal(tx);
   };
 
   // Budgets & Recurring handlers
@@ -97,13 +190,19 @@ export default function App() {
 
   // Reset demo or clear
   const handleResetData = () => {
-    localStorage.clear();
-    window.location.reload();
+    const data = loadStarterSampleData();
+    setTransactions(data.transactions);
+    setBudgets(getStoredBudgets());
+    setRecurring(getStoredRecurring());
   };
 
   const handleClearData = () => {
     setTransactions([]);
     saveStoredTransactions([]);
+    setBudgets({ overall: 0 });
+    saveStoredBudgets({ overall: 0 });
+    setRecurring([]);
+    saveStoredRecurring([]);
   };
 
   // Budget status calculation for alert banner
@@ -112,7 +211,7 @@ export default function App() {
       .filter(t => t.date.startsWith(currentMonth) && t.type === 'expense')
       .reduce((sum, t) => sum + t.amount, 0);
 
-    const overallLimit = budgets.overall || 45000;
+    const overallLimit = budgets.overall || 0;
     const ratio = overallLimit > 0 ? (monthExpenses / overallLimit) : 0;
     return { ratio, monthExpenses, overallLimit };
   }, [transactions, currentMonth, budgets]);
@@ -151,8 +250,8 @@ export default function App() {
           pendingRecurringCount={pendingRecurringCount}
           theme={currentTheme}
           onOpenRecurring={() => {
-            setActiveTab('more');
-            setManageSubTab('recurring');
+            handleTabChange('more');
+            handleSubTabChange('recurring');
           }}
         />
 
@@ -166,13 +265,10 @@ export default function App() {
               currentMonth={currentMonth}
               theme={currentTheme}
               layout={settings.layout || 'classic'}
-              onOpenAddModal={() => {
-                setEditingTransaction(null);
-                setIsAddModalOpen(true);
-              }}
+              onOpenAddModal={() => handleOpenAddModal(null)}
               onSelectTransaction={handleEditClick}
-              onViewAllTransactions={() => setActiveTab('transactions')}
-              onNavigateTab={(tab) => setActiveTab(tab)}
+              onViewAllTransactions={() => handleTabChange('transactions')}
+              onNavigateTab={handleTabChange}
             />
           )}
 
@@ -183,10 +279,7 @@ export default function App() {
               theme={currentTheme}
               onSelectTransaction={handleEditClick}
               onDeleteTransaction={handleDeleteTransaction}
-              onOpenAddModal={() => {
-                setEditingTransaction(null);
-                setIsAddModalOpen(true);
-              }}
+              onOpenAddModal={() => handleOpenAddModal(null)}
             />
           )}
 
@@ -202,7 +295,7 @@ export default function App() {
           {activeTab === 'more' && (
             <ManageView
               subTab={manageSubTab}
-              onSubTabChange={setManageSubTab}
+              onSubTabChange={handleSubTabChange}
               budgets={budgets}
               onSaveBudgets={handleSaveBudgets}
               recurring={recurring}
@@ -224,30 +317,26 @@ export default function App() {
         <BottomNav
           activeTab={activeTab}
           theme={currentTheme}
-          onTabChange={(tab) => {
-            setActiveTab(tab);
-            if (tab === 'more' && manageSubTab !== 'budgets' && manageSubTab !== 'recurring' && manageSubTab !== 'settings') {
-              setManageSubTab('budgets');
-            }
-          }}
-          onOpenAddModal={() => {
-            setEditingTransaction(null);
-            setIsAddModalOpen(true);
-          }}
+          onTabChange={handleTabChange}
+          onOpenAddModal={() => handleOpenAddModal(null)}
         />
 
         {/* Add/Edit Transaction Modal */}
         <AddTransactionModal
           isOpen={isAddModalOpen}
-          onClose={() => {
-            setIsAddModalOpen(false);
-            setEditingTransaction(null);
-          }}
+          onClose={handleCloseAddModal}
           onSave={handleSaveTransaction}
           initialData={editingTransaction}
           currency={settings.currency || '₹'}
           theme={currentTheme}
         />
+
+        {/* Gentle Toast on Mobile (e.g. Press back again to exit) */}
+        {toastMessage && (
+          <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-slate-900/90 text-white text-xs font-semibold px-4 py-2 rounded-full shadow-lg pointer-events-none backdrop-blur-xs border border-slate-700/60 animate-fade-in">
+            {toastMessage}
+          </div>
+        )}
       </div>
     </div>
   );

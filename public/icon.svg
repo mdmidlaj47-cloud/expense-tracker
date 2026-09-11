@@ -1,54 +1,44 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
   <defs>
-    <linearGradient id="rupyaBg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#093829" />
-      <stop offset="50%" stop-color="#044e3b" />
-      <stop offset="100%" stop-color="#02281e" />
-    </linearGradient>
-    <linearGradient id="leafGradLeft" x1="0%" y1="100%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#10b981" />
-      <stop offset="100%" stop-color="#a7f3d0" />
-    </linearGradient>
-    <linearGradient id="leafGradRight" x1="0%" y1="100%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#059669" />
-      <stop offset="100%" stop-color="#6ee7b7" />
-    </linearGradient>
-    <linearGradient id="seedGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#fef08a" />
-      <stop offset="100%" stop-color="#f59e0b" />
-    </linearGradient>
-    <radialGradient id="ambientGlow" cx="50%" cy="52%" r="48%">
-      <stop offset="0%" stop-color="#10b981" stop-opacity="0.32" />
-      <stop offset="60%" stop-color="#059669" stop-opacity="0.12" />
-      <stop offset="100%" stop-color="#02281e" stop-opacity="0" />
-    </radialGradient>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#000000" flood-opacity="0.4" />
+    <!-- Soft shadow for the squircle -->
+    <filter id="softShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="10" stdDeviation="18" flood-color="#0f172a" flood-opacity="0.08" />
     </filter>
+    <!-- Gradient for golden coin seed -->
+    <linearGradient id="coinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#dba954" />
+      <stop offset="50%" stop-color="#c99a4c" />
+      <stop offset="100%" stop-color="#b8873d" />
+    </linearGradient>
+    <linearGradient id="coinInner" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e8bf6a" />
+      <stop offset="100%" stop-color="#be8c3e" />
+    </linearGradient>
   </defs>
 
-  <!-- Squircle Base for Android & Apple App Icon -->
-  <rect width="512" height="512" rx="128" fill="url(#rupyaBg)" />
+  <!-- Clean Scandinavian White Squircle Background -->
+  <rect width="512" height="512" rx="128" fill="#ffffff" />
 
-  <!-- Ambient Botanical Glow -->
-  <circle cx="256" cy="265" r="190" fill="url(#ambientGlow)" />
+  <!-- Sage Green Stem & Sprout -->
+  <g transform="translate(0, 0)">
+    <!-- Left Leaf (Soft Sage) -->
+    <path d="M 245 350 C 180 340 115 290 112 225 C 175 228 235 285 245 350 Z" fill="#75967f" />
+    <path d="M 112 225 C 150 250 210 310 245 350 C 220 300 170 240 112 225 Z" fill="#5e8068" />
 
-  <!-- Rupya Seed & Sprout Composition -->
-  <g filter="url(#shadow)">
-    <!-- Upright Sprout Stem -->
-    <path d="M 256 385 C 256 315 252 245 256 160" stroke="#a7f3d0" stroke-width="26" stroke-linecap="round" fill="none" />
+    <!-- Center Vertical Leaf -->
+    <path d="M 256 270 C 225 220 205 155 256 95 C 256 160 256 220 256 270 Z" fill="#8eb098" />
+    <path d="M 256 270 C 256 220 256 160 256 95 C 307 155 287 220 256 270 Z" fill="#6b8e76" />
 
-    <!-- Left Sprout Leaf (Organic curve) -->
-    <path d="M 252 255 C 195 255 135 205 125 135 C 195 130 248 185 252 255 Z" fill="url(#leafGradLeft)" />
+    <!-- Golden Coin / Seed Pod (Right) -->
+    <g transform="translate(335, 315)">
+      <!-- Outer coin shape with bevel -->
+      <circle cx="0" cy="0" r="80" fill="url(#coinGrad)" />
+      <circle cx="0" cy="0" r="56" fill="url(#coinInner)" />
+      <circle cx="0" cy="0" r="56" stroke="#eecf87" stroke-width="4" fill="none" opacity="0.6" />
+    </g>
 
-    <!-- Right Sprout Leaf (Reaching higher - Financial Prosperity) -->
-    <path d="M 260 215 C 300 160 375 115 405 125 C 405 195 340 235 260 215 Z" fill="url(#leafGradRight)" />
-
-    <!-- Golden Seed Base (Foundation of Savings & Investment) -->
-    <path d="M 210 395 C 210 360 256 315 256 315 C 256 315 302 360 302 395 C 302 425 281 445 256 445 C 231 445 210 425 210 395 Z" fill="url(#seedGrad)" />
-
-    <!-- Golden Spark of Wealth -->
-    <circle cx="415" cy="110" r="16" fill="#fef08a" opacity="0.95" />
-    <circle cx="415" cy="110" r="24" fill="#fef08a" opacity="0.3" />
+    <!-- Main Curved Stem (Emerging from bottom and wrapping around the coin) -->
+    <path d="M 243 405 L 270 405 C 270 375 262 340 290 285 C 320 235 365 230 375 235 C 382 240 375 260 355 275 C 320 300 290 345 290 405 Z" fill="#75967f" />
+    <path d="M 243 405 C 243 355 245 310 256 270 C 256 315 255 360 265 405 Z" fill="#5e8068" />
   </g>
 </svg>

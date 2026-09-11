@@ -10,48 +10,51 @@ export default function RupyaSeedLogo({ className = "w-5 h-5" }) {
       aria-hidden="true"
     >
       <defs>
-        <linearGradient id="seedLeafLeft" x1="12" y1="28" x2="24" y2="12" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#6ee7b7" />
-          <stop offset="1" stopColor="#ecfdf5" />
+        <linearGradient id="coinGradSmall" x1="26" y1="23" x2="38" y2="35" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#dba954" />
+          <stop offset="0.5" stopColor="#c99a4c" />
+          <stop offset="1" stopColor="#b8873d" />
         </linearGradient>
-        <linearGradient id="seedLeafRight" x1="24" y1="24" x2="38" y2="10" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#34d399" />
-          <stop offset="1" stopColor="#a7f3d0" />
-        </linearGradient>
-        <linearGradient id="seedBaseGrad" x1="19" y1="33" x2="29" y2="43" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#fef08a" />
-          <stop offset="1" stopColor="#f59e0b" />
+        <linearGradient id="coinInnerSmall" x1="28" y1="25" x2="36" y2="33" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#e8bf6a" />
+          <stop offset="1" stopColor="#be8c3e" />
         </linearGradient>
       </defs>
 
-      {/* Main Upright Curved Sprout Stem */}
+      {/* Left Leaf (Soft Muted Sage) */}
       <path 
-        d="M24 37C24 31 23.5 24 24 16" 
-        stroke="#a7f3d0" 
-        strokeWidth="3.2" 
-        strokeLinecap="round" 
+        d="M23 33C17 32 11 27 10.5 21C16.5 21.5 22 26.5 23 33Z" 
+        fill="#75967f" 
+      />
+      <path 
+        d="M10.5 21C14 23.5 19.5 29 23 33C20.5 28 16 22.5 10.5 21Z" 
+        fill="#5e8068" 
       />
 
-      {/* Left Leaf - unfurling gently */}
+      {/* Center Vertical Leaf */}
       <path 
-        d="M23.5 25C18.5 25 13 20.5 12 14C18.5 13.5 23 18.5 23.5 25Z" 
-        fill="url(#seedLeafLeft)" 
+        d="M24 25C21 20 19 14 24 8C24 14 24 20 24 25Z" 
+        fill="#8eb098" 
+      />
+      <path 
+        d="M24 25C24 20 24 14 24 8C29 14 27 20 24 25Z" 
+        fill="#6b8e76" 
       />
 
-      {/* Right Leaf - reaching higher for growth & prosperity */}
-      <path 
-        d="M24.5 21C28 16.5 34.5 12 37.5 13C37.5 19.5 31.5 22.5 24.5 21Z" 
-        fill="url(#seedLeafRight)" 
-      />
+      {/* Golden Coin / Seed Pod (Right side) */}
+      <circle cx="31.5" cy="29.5" r="7.5" fill="url(#coinGradSmall)" />
+      <circle cx="31.5" cy="29.5" r="5.2" fill="url(#coinInnerSmall)" />
+      <circle cx="31.5" cy="29.5" r="5.2" stroke="#eecf87" strokeWidth="0.8" fill="none" opacity="0.6" />
 
-      {/* Golden Seed at base */}
+      {/* Main Curved Stem (Connecting leaves and arching over coin) */}
       <path 
-        d="M19.5 37.5C19.5 34.5 24 30.5 24 30.5C24 30.5 28.5 34.5 28.5 37.5C28.5 40 26.5 42 24 42C21.5 42 19.5 40 19.5 37.5Z" 
-        fill="url(#seedBaseGrad)" 
+        d="M23 38L25.5 38C25.5 35 25 32 27.5 26.5C30.5 21.5 34.5 21 35.5 21.5C36 22 35.5 24 33.5 25.5C30 28 27 32 27 38Z" 
+        fill="#75967f" 
       />
-      
-      {/* Light Spark of Prosperity */}
-      <circle cx="38.5" cy="11.5" r="1.5" fill="#fef08a" />
+      <path 
+        d="M23 38C23 33 23 29 24 25C24 29 24 33 25 38Z" 
+        fill="#5e8068" 
+      />
     </svg>
   );
 }

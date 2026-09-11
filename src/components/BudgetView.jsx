@@ -27,6 +27,29 @@ export default function BudgetView({
   // Expense categories
   const expenseCategories = DEFAULT_CATEGORIES.filter(c => c.type === 'expense');
 
+  // Handle Android / Mobile Back button when editing budget limit
+  React.useEffect(() => {
+    if (editingCatId) {
+      window.history.pushState({ app: 'rupya', isBudgetModal: true }, '');
+      const handlePop = () => {
+        setEditingCatId(null);
+      };
+      window.addEventListener('popstate', handlePop, { once: true });
+      return () => {
+        window.removeEventListener('popstate', handlePop);
+      };
+    }
+  }, [editingCatId]);
+
+  const handleCloseEdit = () => {
+    if (editingCatId) {
+      setEditingCatId(null);
+      if (window.history.state?.isBudgetModal) {
+        window.history.back();
+      }
+    }
+  };
+
   const handleStartEdit = (catId, currentVal) => {
     setEditingCatId(catId);
     setEditLimit(String(currentVal || 0));
@@ -39,7 +62,7 @@ export default function BudgetView({
       const updated = { ...budgets, [editingCatId]: val };
       onSaveBudgets(updated);
     }
-    setEditingCatId(null);
+    handleCloseEdit();
   };
 
   return (
@@ -200,7 +223,7 @@ export default function BudgetView({
                 Set Budget Limit
               </h4>
               <button 
-                onClick={() => setEditingCatId(null)}
+                onClick={handleCloseEdit}
                 className={isLight ? 'text-slate-400 hover:text-slate-600' : 'text-slate-400 hover:text-white'}
               >
                 <X className="w-4 h-4" />
@@ -230,7 +253,7 @@ export default function BudgetView({
               <div className="flex space-x-2">
                 <button
                   type="button"
-                  onClick={() => setEditingCatId(null)}
+                  onClick={handleCloseEdit}
                   className={`w-1/2 py-2.5 rounded-xl text-xs font-bold ${
                     isLight ? 'bg-slate-100 text-slate-700' : 'bg-slate-800 text-slate-300'
                   }`}

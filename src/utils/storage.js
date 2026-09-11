@@ -42,23 +42,10 @@ export const DEFAULT_CATEGORIES = [
 ];
 
 export const DEFAULT_BUDGETS = {
-  overall: 45000,
-  food: 9000,
-  groceries: 7000,
-  transport: 4000,
-  shopping: 5000,
-  bills: 5000,
-  entertainment: 3000,
-  health: 2000,
-  rent: 15000
+  overall: 0
 };
 
-export const DEFAULT_RECURRING = [
-  { id: 'rec_1', name: 'House Rent', amount: 15000, categoryId: 'rent', dueDay: 1, paymentMethod: 'NetBanking', active: true },
-  { id: 'rec_2', name: 'Airtel Wi-Fi Fiber', amount: 999, categoryId: 'bills', dueDay: 8, paymentMethod: 'UPI', active: true },
-  { id: 'rec_3', name: 'Gym Membership', amount: 1500, categoryId: 'health', dueDay: 15, paymentMethod: 'UPI', active: true },
-  { id: 'rec_4', name: 'Netflix Subscription', amount: 499, categoryId: 'entertainment', dueDay: 20, paymentMethod: 'Card', active: true }
-];
+export const DEFAULT_RECURRING = [];
 
 export const AVAILABLE_THEMES = [
   { id: 'emerald', name: 'Emerald Dark', description: 'Deep slate with glowing emerald & teal', color: '#10b981', previewBg: '#022c22', border: '#10b981' },
@@ -82,8 +69,8 @@ export const DEFAULT_SETTINGS = {
   layout: 'classic'
 };
 
-// Generates starter transactions for the current month so the app is immediately alive
-const getSampleTransactions = () => {
+// Generates starter transactions on-demand ONLY if user requests it via Settings
+export const getSampleTransactions = () => {
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -175,19 +162,34 @@ const getSampleTransactions = () => {
   ];
 };
 
-// Safe storage accessors
+// Safe storage accessors - starts fresh from zero for any new user
 export const getStoredTransactions = () => {
   try {
-    const raw = localStorage.getItem(TRANSACTIONS_KEY) || localStorage.getItem(LEGACY_TRANSACTIONS_KEY);
+    const raw = localStorage.getItem(TRANSACTIONS_KEY);
     if (!raw) {
-      const sample = getSampleTransactions();
-      localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(sample));
-      return sample;
+      const legacyRaw = localStorage.getItem(LEGACY_TRANSACTIONS_KEY);
+      if (legacyRaw) {
+        const legacyParsed = JSON.parse(legacyRaw);
+        const hasRealData = legacyParsed.some(t => !t.id?.startsWith('tx_demo_'));
+        if (hasRealData) {
+          localStorage.setItem(TRANSACTIONS_KEY, legacyRaw);
+          return legacyParsed;
+        }
+      }
+      // Fresh user starts with ZERO transactions
+      localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify([]));
+      return [];
     }
     const parsed = JSON.parse(raw);
-    if (!localStorage.getItem(TRANSACTIONS_KEY)) {
-      localStorage.setItem(TRANSACTIONS_KEY, raw);
+    if (!Array.isArray(parsed)) return [];
+
+    // Clear auto-populated demo data so current user also starts clean from zero
+    const isOnlyDemo = parsed.length > 0 && parsed.every(t => t.id && t.id.startsWith('tx_demo_'));
+    if (isOnlyDemo) {
+      localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify([]));
+      return [];
     }
+
     return parsed;
   } catch (err) {
     console.error('Failed to read transactions:', err);
@@ -205,14 +207,22 @@ export const saveStoredTransactions = (transactions) => {
 
 export const getStoredBudgets = () => {
   try {
-    const raw = localStorage.getItem(BUDGETS_KEY) || localStorage.getItem(LEGACY_BUDGETS_KEY);
+    const raw = localStorage.getItem(BUDGETS_KEY);
     if (!raw) {
-      localStorage.setItem(BUDGETS_KEY, JSON.stringify(DEFAULT_BUDGETS));
-      return DEFAULT_BUDGETS;
+      const defaultBudgets = { overall: 0 };
+      localStorage.setItem(BUDGETS_KEY, JSON.stringify(defaultBudgets));
+      return defaultBudgets;
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    // Clear default 45000 demo budget if it was auto-seeded
+    if (parsed && parsed.overall === 45000 && Object.keys(parsed).length === 9) {
+      const defaultBudgets = { overall: 0 };
+      localStorage.setItem(BUDGETS_KEY, JSON.stringify(defaultBudgets));
+      return defaultBudgets;
+    }
+    return parsed;
   } catch (err) {
-    return DEFAULT_BUDGETS;
+    return { overall: 0 };
   }
 };
 
@@ -226,14 +236,22 @@ export const saveStoredBudgets = (budgets) => {
 
 export const getStoredRecurring = () => {
   try {
-    const raw = localStorage.getItem(RECURRING_KEY) || localStorage.getItem(LEGACY_RECURRING_KEY);
+    const raw = localStorage.getItem(RECURRING_KEY);
     if (!raw) {
-      localStorage.setItem(RECURRING_KEY, JSON.stringify(DEFAULT_RECURRING));
-      return DEFAULT_RECURRING;
+      localStorage.setItem(RECURRING_KEY, JSON.stringify([]));
+      return [];
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    // Clear default demo recurring (rec_1, rec_2, rec_3, rec_4)
+    const isOnlyDemo = parsed.length > 0 && parsed.every(r => r.id && /^rec_[1-4]$/.test(r.id));
+    if (isOnlyDemo) {
+      localStorage.setItem(RECURRING_KEY, JSON.stringify([]));
+      return [];
+    }
+    return parsed;
   } catch (err) {
-    return DEFAULT_RECURRING;
+    return [];
   }
 };
 
@@ -241,8 +259,20 @@ export const saveStoredRecurring = (recurring) => {
   try {
     localStorage.setItem(RECURRING_KEY, JSON.stringify(recurring));
   } catch (err) {
-    console.error('Failed to save recurring items:', err);
+    console.error('Failed to save recurring:', err);
   }
+};
+
+// Explicitly re-load sample demo transactions on demand
+export const loadStarterSampleData = () => {
+  const sample = getSampleTransactions();
+  saveStoredTransactions(sample);
+  saveStoredBudgets({ overall: 45000, food: 9000, groceries: 7000, transport: 4000, shopping: 5000, bills: 5000 });
+  saveStoredRecurring([
+    { id: 'rec_1', name: 'House Rent', amount: 15000, categoryId: 'rent', dueDay: 1, paymentMethod: 'NetBanking', active: true },
+    { id: 'rec_2', name: 'Airtel Wi-Fi Fiber', amount: 999, categoryId: 'bills', dueDay: 8, paymentMethod: 'UPI', active: true }
+  ]);
+  return { transactions: sample };
 };
 
 export const getStoredSettings = () => {

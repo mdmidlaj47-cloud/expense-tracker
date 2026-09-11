@@ -20,12 +20,17 @@ export default function Header({
       <div className="flex items-center justify-between">
         {/* Brand & Greeting */}
         <div className="flex items-center space-x-2.5">
-          <div className={`w-9 h-9 rounded-2xl flex items-center justify-center shadow-sm transition ${
-            isLight 
-              ? 'bg-slate-900 text-white shadow-slate-900/15' 
-              : 'bg-emerald-950 border border-emerald-800/80 text-white shadow-emerald-950/30'
-          }`}>
-            <RupyaSeedLogo className="w-5 h-5" />
+          <div className="w-9 h-9 rounded-2xl overflow-hidden shadow-xs border border-slate-200/90 bg-white flex items-center justify-center shrink-0">
+            <img 
+              src="./apple-touch-icon-180x180.png" 
+              alt="Rupya" 
+              className="w-full h-full object-cover" 
+              onError={(e) => {
+                e.target.style.display = 'none';
+                if (e.target.nextSibling) e.target.nextSibling.style.display = 'block';
+              }}
+            />
+            <RupyaSeedLogo className="w-5 h-5 hidden" />
           </div>
           <div>
             <div className="flex items-center space-x-1.5">

@@ -36,6 +36,27 @@ export default function RecurringView({
     .filter(r => r.active)
     .reduce((sum, r) => sum + r.amount, 0);
 
+  // Handle Android / Mobile Back button when add recurring modal is open
+  React.useEffect(() => {
+    if (isAdding) {
+      window.history.pushState({ app: 'rupya', isRecurringModal: true }, '');
+      const handlePop = () => {
+        setIsAdding(false);
+      };
+      window.addEventListener('popstate', handlePop, { once: true });
+      return () => {
+        window.removeEventListener('popstate', handlePop);
+      };
+    }
+  }, [isAdding]);
+
+  const handleCloseModal = () => {
+    setIsAdding(false);
+    if (window.history.state?.isRecurringModal) {
+      window.history.back();
+    }
+  };
+
   const handleAddRecurring = (e) => {
     e.preventDefault();
     const num = parseFloat(amount);
@@ -52,7 +73,7 @@ export default function RecurringView({
     };
 
     onSaveRecurring([...recurring, newItem]);
-    setIsAdding(false);
+    handleCloseModal();
     setName('');
     setAmount('');
   };
@@ -218,7 +239,7 @@ export default function RecurringView({
           }`}>
             <div className={`flex items-center justify-between border-b pb-2 ${isLight ? 'border-slate-100' : 'border-slate-800'}`}>
               <h4 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>Add Recurring Bill</h4>
-              <button onClick={() => setIsAdding(false)} className={isLight ? 'text-slate-400 hover:text-slate-600' : 'text-slate-400 hover:text-white'}>
+              <button onClick={handleCloseModal} className={isLight ? 'text-slate-400 hover:text-slate-600' : 'text-slate-400 hover:text-white'}>
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -311,7 +332,7 @@ export default function RecurringView({
               <div className="flex space-x-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setIsAdding(false)}
+                  onClick={handleCloseModal}
                   className={`w-1/2 py-2.5 rounded-xl text-xs font-bold ${
                     isLight ? 'bg-slate-100 text-slate-700' : 'bg-slate-800 text-slate-300'
                   }`}
