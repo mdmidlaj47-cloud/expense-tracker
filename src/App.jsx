@@ -180,6 +180,7 @@ export default function App() {
             <TransactionsView
               transactions={transactions}
               currency={settings.currency || '₹'}
+              theme={currentTheme}
               onSelectTransaction={handleEditClick}
               onDeleteTransaction={handleDeleteTransaction}
               onOpenAddModal={() => {

@@ -12,7 +12,8 @@ import {
   Sparkles,
   Calendar,
   Activity,
-  Layers
+  Layers,
+  Edit2
 } from 'lucide-react';
 import { formatAmount, DEFAULT_CATEGORIES } from '../utils/storage';
 import CategoryIcon from './CategoryIcon';
@@ -383,14 +384,13 @@ export default function DashboardView({
               return (
                 <div
                   key={tx.id}
-                  onClick={() => onSelectTransaction(tx)}
-                  className={`p-3.5 rounded-2xl border flex items-center justify-between cursor-pointer active-press transition ${
+                  className={`p-3.5 rounded-2xl border flex items-center justify-between transition ${
                     isLight 
                       ? 'bg-white border-slate-200/90 hover:border-slate-300 shadow-xs' 
                       : 'glass-card border-slate-800 hover:border-slate-700'
                   }`}
                 >
-                  <div className="flex items-center space-x-3 min-w-0">
+                  <div className="flex items-center space-x-3 min-w-0 flex-1">
                     <div 
                       className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
                         isLight ? 'bg-slate-100' : ''
@@ -399,7 +399,7 @@ export default function DashboardView({
                     >
                       <CategoryIcon name={cat.icon} className="w-5 h-5" color={cat.color} />
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 pr-2">
                       <div className="flex items-center space-x-1.5">
                         <span className={`text-xs font-bold truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
                           {cat.name}
@@ -418,17 +418,35 @@ export default function DashboardView({
                     </div>
                   </div>
 
-                  <div className="text-right shrink-0 pl-2">
-                    <div className={`text-xs font-extrabold ${
-                      isExpense 
-                        ? (isLight ? 'text-slate-900' : 'text-rose-400') 
-                        : (isLight ? 'text-emerald-700' : 'text-emerald-400')
-                    }`}>
-                      {isExpense ? '-' : '+'}{formatAmount(tx.amount, currency)}
+                  <div className="flex items-center space-x-2 shrink-0 pl-2">
+                    <div className="text-right">
+                      <div className={`text-xs font-extrabold ${
+                        isExpense 
+                          ? (isLight ? 'text-slate-900' : 'text-rose-400') 
+                          : (isLight ? 'text-emerald-700' : 'text-emerald-400')
+                      }`}>
+                        {isExpense ? '-' : '+'}{formatAmount(tx.amount, currency)}
+                      </div>
+                      <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-slate-400'}`}>
+                        {tx.time || tx.date.slice(5)}
+                      </span>
                     </div>
-                    <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-slate-400'}`}>
-                      {tx.time || tx.date.slice(5)}
-                    </span>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectTransaction(tx);
+                      }}
+                      title="Edit Record"
+                      aria-label={`Edit ${cat.name} record`}
+                      className={`p-1.5 rounded-lg transition active-press ${
+                        isLight 
+                          ? 'hover:bg-slate-100 text-slate-400 hover:text-slate-700' 
+                          : 'hover:bg-slate-800 text-slate-500 hover:text-slate-300'
+                      }`}
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               );
