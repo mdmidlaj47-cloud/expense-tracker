@@ -195,6 +195,7 @@ export default function App() {
               transactions={transactions}
               currency={settings.currency || '₹'}
               currentMonth={currentMonth}
+              theme={currentTheme}
             />
           )}
 
@@ -212,6 +213,7 @@ export default function App() {
               transactions={transactions}
               currentMonth={currentMonth}
               currency={settings.currency || '₹'}
+              theme={currentTheme}
               onResetData={handleResetData}
               onClearData={handleClearData}
             />

@@ -63,6 +63,26 @@
   color: #0f172a;
 }
 
+/* Ensure buttons, badges, and dark containers always have pure white text and icons in light mode */
+.theme-light button.text-white,
+.theme-light button .text-white,
+.theme-light .bg-slate-900,
+.theme-light .bg-slate-900 *,
+.theme-light .bg-emerald-600,
+.theme-light .bg-emerald-600 *,
+.theme-light .bg-emerald-500,
+.theme-light .bg-emerald-500 *,
+.theme-light .bg-rose-600,
+.theme-light .bg-rose-600 *,
+.theme-light .bg-rose-500,
+.theme-light .bg-rose-500 * {
+  color: #ffffff !important;
+}
+
+.theme-light .bg-slate-900 {
+  background-color: #0f172a !important;
+}
+
 .theme-light .text-slate-300,
 .theme-light .text-slate-200 {
   color: #334155;
@@ -74,11 +94,6 @@
 
 .theme-light .text-slate-500 {
   color: #94a3b8;
-}
-
-.theme-light .bg-slate-900,
-.theme-light .bg-slate-950 {
-  background-color: #f1f5f9;
 }
 
 .theme-light .border-slate-800,

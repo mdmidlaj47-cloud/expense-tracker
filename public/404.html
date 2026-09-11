@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Redirecting to Rupya...</title>
+    <script>
+      var path = window.location.pathname;
+      if (!path.startsWith('/expense-tracker')) {
+        window.location.replace('/expense-tracker/');
+      } else {
+        window.location.replace('/expense-tracker/' + window.location.search + window.location.hash);
+      }
+    </script>
+    <meta http-equiv="refresh" content="0; URL='/expense-tracker/'">
+  </head>
+  <body>
+    <p>Redirecting to <a href="/expense-tracker/">Rupya Expense Tracker</a>...</p>
+  </body>
+</html>
