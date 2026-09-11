@@ -1,7 +1,7 @@
 {
-  "name": "RupeeTrack - Expense Tracker",
-  "short_name": "RupeeTrack",
-  "description": "Fast, private personal expense & budget tracker for Android",
+  "name": "Rupya - Expense & Budget Tracker",
+  "short_name": "Rupya",
+  "description": "Fast, private personal expense & budget tracker with smart savings growth",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

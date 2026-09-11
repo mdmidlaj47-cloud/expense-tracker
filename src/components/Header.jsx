@@ -1,5 +1,6 @@
 import React from 'react';
 import { Calendar, Bell, Sparkles, ChevronDown } from 'lucide-react';
+import RupyaSeedLogo from './RupyaSeedLogo';
 
 export default function Header({ 
   currentMonth, 
@@ -19,24 +20,24 @@ export default function Header({
       <div className="flex items-center justify-between">
         {/* Brand & Greeting */}
         <div className="flex items-center space-x-2.5">
-          <div className={`w-9 h-9 rounded-2xl flex items-center justify-center font-bold text-base shadow-sm transition ${
+          <div className={`w-9 h-9 rounded-2xl flex items-center justify-center shadow-sm transition ${
             isLight 
-              ? 'bg-emerald-600 text-white shadow-emerald-600/20' 
-              : 'bg-gradient-to-tr from-emerald-600 to-teal-400 text-white shadow-emerald-900/30'
+              ? 'bg-slate-900 text-white shadow-slate-900/15' 
+              : 'bg-emerald-950 border border-emerald-800/80 text-white shadow-emerald-950/30'
           }`}>
-            ₹
+            <RupyaSeedLogo className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center space-x-1.5">
               <h1 className={`text-base font-extrabold tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                RupeeTrack
+                Rupya
               </h1>
               <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full border ${
                 isLight 
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
                   : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
               }`}>
-                Clean
+                Growth
               </span>
             </div>
             <p className={`text-[11px] font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>

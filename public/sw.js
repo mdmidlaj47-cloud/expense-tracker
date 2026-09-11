@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rupeetrack-cache-v2';
+const CACHE_NAME = 'rupya-cache-v1';
 const STATIC_ASSETS = [
   './',
   './index.html',

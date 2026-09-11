@@ -1,4 +1,4 @@
-name: Deploy RupeeTrack to GitHub Pages
+name: Deploy Rupya to GitHub Pages
 
 on:
   push:

@@ -1,9 +1,18 @@
-// Storage key constants
-const TRANSACTIONS_KEY = 'rupeetrack_transactions_v1';
-const CATEGORIES_KEY = 'rupeetrack_categories_v1';
-const BUDGETS_KEY = 'rupeetrack_budgets_v1';
-const RECURRING_KEY = 'rupeetrack_recurring_v1';
-const SETTINGS_KEY = 'rupeetrack_settings_v1';
+// Storage key constants (with backward-compatible migration)
+const TRANSACTIONS_KEY = 'rupya_transactions_v1';
+const LEGACY_TRANSACTIONS_KEY = 'rupeetrack_transactions_v1';
+
+const CATEGORIES_KEY = 'rupya_categories_v1';
+const LEGACY_CATEGORIES_KEY = 'rupeetrack_categories_v1';
+
+const BUDGETS_KEY = 'rupya_budgets_v1';
+const LEGACY_BUDGETS_KEY = 'rupeetrack_budgets_v1';
+
+const RECURRING_KEY = 'rupya_recurring_v1';
+const LEGACY_RECURRING_KEY = 'rupeetrack_recurring_v1';
+
+const SETTINGS_KEY = 'rupya_settings_v1';
+const LEGACY_SETTINGS_KEY = 'rupeetrack_settings_v1';
 
 export const PAYMENT_METHODS = [
   { id: 'UPI', label: 'UPI / GPay / PhonePe', icon: 'Smartphone' },
@@ -169,13 +178,17 @@ const getSampleTransactions = () => {
 // Safe storage accessors
 export const getStoredTransactions = () => {
   try {
-    const raw = localStorage.getItem(TRANSACTIONS_KEY);
+    const raw = localStorage.getItem(TRANSACTIONS_KEY) || localStorage.getItem(LEGACY_TRANSACTIONS_KEY);
     if (!raw) {
       const sample = getSampleTransactions();
       localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(sample));
       return sample;
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (!localStorage.getItem(TRANSACTIONS_KEY)) {
+      localStorage.setItem(TRANSACTIONS_KEY, raw);
+    }
+    return parsed;
   } catch (err) {
     console.error('Failed to read transactions:', err);
     return [];
@@ -192,7 +205,7 @@ export const saveStoredTransactions = (transactions) => {
 
 export const getStoredBudgets = () => {
   try {
-    const raw = localStorage.getItem(BUDGETS_KEY);
+    const raw = localStorage.getItem(BUDGETS_KEY) || localStorage.getItem(LEGACY_BUDGETS_KEY);
     if (!raw) {
       localStorage.setItem(BUDGETS_KEY, JSON.stringify(DEFAULT_BUDGETS));
       return DEFAULT_BUDGETS;
@@ -213,7 +226,7 @@ export const saveStoredBudgets = (budgets) => {
 
 export const getStoredRecurring = () => {
   try {
-    const raw = localStorage.getItem(RECURRING_KEY);
+    const raw = localStorage.getItem(RECURRING_KEY) || localStorage.getItem(LEGACY_RECURRING_KEY);
     if (!raw) {
       localStorage.setItem(RECURRING_KEY, JSON.stringify(DEFAULT_RECURRING));
       return DEFAULT_RECURRING;
@@ -234,7 +247,7 @@ export const saveStoredRecurring = (recurring) => {
 
 export const getStoredSettings = () => {
   try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
+    const raw = localStorage.getItem(SETTINGS_KEY) || localStorage.getItem(LEGACY_SETTINGS_KEY);
     if (!raw) {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(DEFAULT_SETTINGS));
       return DEFAULT_SETTINGS;
@@ -307,7 +320,7 @@ export const exportBackupJSON = () => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.setAttribute('href', url);
-  link.setAttribute('download', `RupeeTrack_Backup_${new Date().toISOString().slice(0, 10)}.json`);
+  link.setAttribute('download', `Rupya_Backup_${new Date().toISOString().slice(0, 10)}.json`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
