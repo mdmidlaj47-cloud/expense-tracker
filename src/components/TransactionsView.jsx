@@ -211,7 +211,7 @@ export default function TransactionsView({
   };
 
   return (
-    <div className="space-y-3 pb-24">
+    <div className="space-y-3 pb-32">
       {/* 1. Top Search & Filter Bar */}
       <div className="space-y-2">
         <div className="relative flex items-center">

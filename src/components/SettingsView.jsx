@@ -75,7 +75,7 @@ export default function SettingsView({
   };
 
   return (
-    <div className="space-y-4 pb-24">
+    <div className="space-y-4 pb-32">
       {/* Install Guide Card (Android & iPhone) */}
       <div className={`p-5 rounded-3xl border transition-all ${
         isLight 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rupya-cache-v3';
+const CACHE_NAME = 'rupya-cache-v4';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -36,10 +36,32 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   if (!event.request.url.startsWith('http')) return;
 
+  // For HTML navigation (refreshing or opening the app): Network-first to always get the latest version
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
+          return networkResponse;
+        })
+        .catch(async () => {
+          const cached = await caches.match(event.request);
+          if (cached) return cached;
+          const cachedIndex = await caches.match('./index.html');
+          if (cachedIndex) return cachedIndex;
+          return caches.match('./');
+        })
+    );
+    return;
+  }
+
+  // For assets (JS, CSS, images): Cache-first with background revalidation
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
-        // Revalidate in background for fresher assets
         fetch(event.request).then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200 && (networkResponse.type === 'basic' || networkResponse.type === 'cors')) {
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
@@ -56,14 +78,6 @@ self.addEventListener('fetch', (event) => {
           });
         }
         return networkResponse;
-      }).catch(async () => {
-        if (event.request.mode === 'navigate') {
-          const cachedIndex = await caches.match('./index.html');
-          if (cachedIndex) return cachedIndex;
-          const cachedRoot = await caches.match('./');
-          if (cachedRoot) return cachedRoot;
-        }
-        return caches.match(event.request);
       });
     })
   );

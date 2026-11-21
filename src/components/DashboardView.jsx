@@ -211,7 +211,7 @@ export default function DashboardView({
   };
 
   return (
-    <div className="space-y-4 pb-24">
+    <div className="space-y-4 pb-32">
       {/* 1. Total Spendable Balance Hero Card */}
       <div className={`relative overflow-hidden rounded-3xl p-5 border transition-all duration-300 ${getBalanceCardStyle()}`}>
         <div className="flex items-center justify-between text-xs font-semibold mb-1">
@@ -428,7 +428,7 @@ export default function DashboardView({
             }`}
           >
             <Plus className="w-3.5 h-3.5 stroke-[3]" />
-            <span>+ Save</span>
+            <span>Save</span>
           </button>
         </div>
 

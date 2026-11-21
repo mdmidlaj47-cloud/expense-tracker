@@ -104,7 +104,7 @@ export default function AnalyticsView({
   const topCategory = categoryStats[0];
 
   return (
-    <div className="space-y-4 pb-24">
+    <div className="space-y-4 pb-32">
       {/* View Switcher */}
       <div className={`grid grid-cols-3 p-1 rounded-2xl border transition-colors ${
         isLight ? 'bg-white border-slate-200/90 shadow-xs' : 'bg-slate-900 border-slate-800'

@@ -2,6 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <style id="theme-early-style">
+      :root, html, body {
+        background-color: #060b17;
+        color: #f8fafc;
+        margin: 0;
+        padding: 0;
+      }
+    </style>
     <script>
       // 1. Ensure trailing slash on GitHub Pages so relative assets and PWA scopes always resolve accurately
       if (window.location.pathname === '/expense-tracker') {
@@ -22,6 +30,10 @@
           };
           var bg = themeBgs[theme] || (theme === 'light' ? '#f8fafc' : '#020617');
           var text = theme === 'light' ? '#0f172a' : '#f8fafc';
+          var style = document.getElementById('theme-early-style');
+          if (style) {
+            style.textContent = ':root, html, body { background-color: ' + bg + ' !important; color: ' + text + ' !important; margin: 0; padding: 0; }';
+          }
           document.documentElement.style.backgroundColor = bg;
           document.documentElement.style.color = text;
         } catch(e) {}
@@ -34,7 +46,7 @@
     <link rel="apple-touch-icon" sizes="192x192" href="./pwa-192x192.png" />
     <link rel="apple-touch-icon" sizes="512x512" href="./pwa-512x512.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" id="theme-color-meta" content="#f8fafc" />
+    <meta name="theme-color" id="theme-color-meta" content="#060b17" />
     <script>
       // Immediately sync theme-color meta tag before first paint
       (function() {
@@ -77,7 +89,10 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js').catch(err => {
+          navigator.serviceWorker.register('./sw.js').then((reg) => {
+            // Check for updates to service worker immediately
+            reg.update();
+          }).catch(err => {
             console.log('SW registration note:', err);
           });
         });

@@ -66,7 +66,7 @@ export default function BudgetView({
   };
 
   return (
-    <div className="space-y-4 pb-24">
+    <div className="space-y-4 pb-32">
       {/* Overall Budget Header Card */}
       <div className={`p-5 rounded-3xl border relative overflow-hidden transition-colors ${
         isLight ? 'bg-white border-slate-200/90 shadow-xs' : 'glass-card border-slate-800'

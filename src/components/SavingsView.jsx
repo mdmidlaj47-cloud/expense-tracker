@@ -166,7 +166,7 @@ export default function SavingsView({
   };
 
   return (
-    <div className="space-y-4 pb-24">
+    <div className="space-y-4 pb-32">
       {/* 1. Savings Hero Card */}
       <div className={`p-5 rounded-3xl border transition-all ${
         isLight

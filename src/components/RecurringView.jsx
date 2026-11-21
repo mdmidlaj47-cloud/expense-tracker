@@ -104,7 +104,7 @@ export default function RecurringView({
   };
 
   return (
-    <div className="space-y-4 pb-24">
+    <div className="space-y-4 pb-32">
       {/* Overview Card */}
       <div className={`p-5 rounded-3xl border flex items-center justify-between transition-colors ${
         isLight ? 'bg-white border-slate-200/90 shadow-xs' : 'glass-card border-slate-800'
