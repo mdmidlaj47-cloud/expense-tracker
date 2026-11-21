@@ -371,7 +371,9 @@ export default function DashboardView({
                   </>
                 ) : (
                   <>
-                    <span className={`text-xs font-extrabold truncate block mt-0.5 text-emerald-700`}>
+                    <span className={`text-xs font-extrabold truncate block mt-0.5 ${
+                      isLight ? 'text-emerald-700' : 'text-emerald-400'
+                    }`}>
                       +{formatAmount(m.monthIncome, currency)}
                     </span>
                     <span className="text-[9px] text-slate-400 block mt-0.5">
@@ -687,9 +689,9 @@ export default function DashboardView({
                     <div className="text-right">
                       <div className={`text-xs font-extrabold ${
                         isSaving
-                          ? 'text-emerald-700'
+                          ? (isLight ? 'text-amber-700' : 'text-amber-400')
                           : isExpense 
-                          ? (isLight ? 'text-slate-900' : 'text-rose-400') 
+                          ? (isLight ? 'text-rose-700' : 'text-rose-400') 
                           : (isLight ? 'text-emerald-700' : 'text-emerald-400')
                       }`}>
                         {isSaving ? '🌱 +' : isExpense ? '-' : '+'}{formatAmount(tx.amount, currency)}

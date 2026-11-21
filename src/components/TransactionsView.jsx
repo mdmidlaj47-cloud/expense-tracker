@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Search, 
-  Filter, 
   Trash2, 
   Download, 
   ArrowUpRight, 
@@ -12,10 +11,11 @@ import {
   Edit2, 
   PiggyBank, 
   ChevronDown, 
-  ChevronUp, 
   ChevronsUpDown,
   FolderOpen,
-  FolderClosed
+  FolderClosed,
+  TrendingUp,
+  CreditCard
 } from 'lucide-react';
 import { DEFAULT_CATEGORIES, PAYMENT_METHODS, formatAmount, exportTransactionsToCSV, DEFAULT_SAVINGS_GOALS } from '../utils/storage';
 import CategoryIcon from './CategoryIcon';
@@ -26,13 +26,6 @@ const formatMonthName = (monthKey) => {
   const [y, m] = monthKey.split('-');
   const date = new Date(parseInt(y, 10), parseInt(m, 10) - 1, 1);
   return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
-};
-
-const formatMonthShort = (monthKey) => {
-  if (!monthKey) return '';
-  const [y, m] = monthKey.split('-');
-  const date = new Date(parseInt(y, 10), parseInt(m, 10) - 1, 1);
-  return date.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
 };
 
 export default function TransactionsView({ 
@@ -101,7 +94,6 @@ export default function TransactionsView({
         monthsMap[monthKey] = {
           monthKey,
           label: formatMonthName(monthKey),
-          shortLabel: formatMonthShort(monthKey),
           transactions: [],
           days: {},
           totalExpense: 0,
@@ -125,7 +117,7 @@ export default function TransactionsView({
     return Object.values(monthsMap).sort((a, b) => b.monthKey.localeCompare(a.monthKey));
   }, [filtered]);
 
-  // All distinct months in the entire transaction dataset for filter tabs
+  // All distinct months in the entire transaction dataset for filter options
   const allAvailableMonths = useMemo(() => {
     const monthSet = new Set();
     transactions.forEach(t => {
@@ -141,11 +133,10 @@ export default function TransactionsView({
     return { [thisMonthKey]: true };
   });
 
-  // Ensure newest month is open on first mount or data load
+  // Ensure newest month is open on mount
   useEffect(() => {
     if (groupedByMonth.length > 0) {
       setOpenMonths(prev => {
-        // If no months are open, open the newest one
         const hasOpen = Object.values(prev).some(Boolean);
         if (!hasOpen) {
           return { [groupedByMonth[0].monthKey]: true };
@@ -155,7 +146,7 @@ export default function TransactionsView({
     }
   }, [groupedByMonth]);
 
-  // Auto-expand all matching months when user searches or filters
+  // Auto-expand all matching months when searching or filtering
   useEffect(() => {
     if (searchQuery.trim() || typeFilter !== 'all' || categoryFilter !== 'all' || paymentFilter !== 'all') {
       const allActive = {};
@@ -211,11 +202,12 @@ export default function TransactionsView({
   };
 
   return (
-    <div className="space-y-3 pb-32">
-      {/* 1. Top Search & Filter Bar */}
-      <div className="space-y-2">
+    <div className="space-y-4 pb-32">
+      {/* 1. Clean, Uncluttered Top Controls Bar */}
+      <div className="space-y-2.5">
+        {/* Search Input */}
         <div className="relative flex items-center">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
           <input
             type="text"
             placeholder="Search note, category, amount, UPI..."
@@ -223,50 +215,74 @@ export default function TransactionsView({
             onChange={(e) => setSearchQuery(e.target.value)}
             className={`w-full ${
               isLight 
-                ? 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-slate-400 shadow-xs' 
+                ? 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-emerald-600 shadow-xs' 
                 : 'bg-slate-900/90 border-slate-800 text-white placeholder-slate-500 focus:border-emerald-500'
-            } border rounded-2xl pl-9 pr-9 py-2.5 text-xs focus:outline-none`}
+            } border rounded-2xl pl-10 pr-10 py-2.5 text-xs focus:outline-none transition-colors`}
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className={`absolute right-3 ${isLight ? 'text-slate-400 hover:text-slate-600' : 'text-slate-400 hover:text-white'}`}
+              className={`absolute right-3.5 ${isLight ? 'text-slate-400 hover:text-slate-600' : 'text-slate-400 hover:text-white'}`}
             >
               <X className="w-4 h-4" />
             </button>
           )}
         </div>
 
-        {/* Filter Pills */}
-        <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar py-1">
+        {/* Filter Row: Single smooth row of pills & selectors */}
+        <div className="flex items-center space-x-2 overflow-x-auto no-scrollbar py-0.5">
           {/* Type filters */}
           {['all', 'expense', 'income', 'saving'].map((tf) => (
             <button
               key={tf}
               onClick={() => setTypeFilter(tf)}
-              className={`px-3 py-1 rounded-xl text-xs font-semibold shrink-0 transition active-press ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition active-press ${
                 typeFilter === tf
-                  ? (isLight ? 'bg-slate-900 text-white shadow-xs' : 'bg-emerald-500 text-white shadow-sm')
-                  : (isLight ? 'bg-white border border-slate-200 text-slate-600 hover:text-slate-900' : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200')
+                  ? (isLight ? 'bg-slate-900 text-white shadow-xs' : 'bg-emerald-500 text-slate-950 font-extrabold shadow-sm')
+                  : (isLight ? 'bg-white border border-slate-200 text-slate-600 hover:text-slate-900' : 'bg-slate-900/90 border border-slate-800 text-slate-300 hover:text-white')
               }`}
             >
-              {tf === 'all' ? 'All' : tf === 'expense' ? 'Expenses' : tf === 'income' ? 'Income' : 'Savings 🌱'}
+              {tf === 'all' ? 'All' : tf === 'expense' ? 'Expenses 💸' : tf === 'income' ? 'Income 💰' : 'Savings 🌱'}
             </button>
           ))}
+
+          {/* Month selector dropdown pill */}
+          {allAvailableMonths.length > 1 && (
+            <select
+              value={selectedMonthFilter}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSelectedMonthFilter(val);
+                if (val !== 'all') {
+                  setOpenMonths(prev => ({ ...prev, [val]: true }));
+                }
+              }}
+              className={`text-xs font-semibold rounded-xl px-2.5 py-1.5 focus:outline-none shrink-0 cursor-pointer border transition ${
+                selectedMonthFilter !== 'all'
+                  ? (isLight ? 'border-emerald-600 bg-emerald-50 text-emerald-950 font-bold' : 'border-emerald-500 bg-emerald-500/15 text-emerald-300 font-bold')
+                  : (isLight ? 'bg-white border-slate-200 text-slate-700' : 'bg-slate-900/90 border-slate-800 text-slate-300')
+              }`}
+            >
+              <option value="all">📅 All Months</option>
+              {allAvailableMonths.map(mk => (
+                <option key={mk} value={mk}>📅 {formatMonthName(mk)}</option>
+              ))}
+            </select>
+          )}
 
           {/* Payment method selector */}
           <select
             value={paymentFilter}
             onChange={(e) => setPaymentFilter(e.target.value)}
-            className={`text-xs rounded-xl px-2.5 py-1 focus:outline-none shrink-0 cursor-pointer border ${
-              isLight
-                ? 'bg-white border-slate-200 text-slate-700'
-                : 'bg-slate-900 border-slate-800 text-slate-300 focus:border-emerald-500'
+            className={`text-xs font-semibold rounded-xl px-2.5 py-1.5 focus:outline-none shrink-0 cursor-pointer border transition ${
+              paymentFilter !== 'all'
+                ? (isLight ? 'border-emerald-600 bg-emerald-50 text-emerald-950 font-bold' : 'border-emerald-500 bg-emerald-500/15 text-emerald-300 font-bold')
+                : (isLight ? 'bg-white border-slate-200 text-slate-700' : 'bg-slate-900/90 border-slate-800 text-slate-300')
             }`}
           >
-            <option value="all">Payment: All</option>
+            <option value="all">💳 Payment: All</option>
             {PAYMENT_METHODS.map(p => (
-              <option key={p.id} value={p.id}>{p.id}</option>
+              <option key={p.id} value={p.id}>{p.label}</option>
             ))}
           </select>
 
@@ -274,13 +290,13 @@ export default function TransactionsView({
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className={`text-xs rounded-xl px-2.5 py-1 focus:outline-none shrink-0 cursor-pointer border ${
-              isLight
-                ? 'bg-white border-slate-200 text-slate-700'
-                : 'bg-slate-900 border-slate-800 text-slate-300 focus:border-emerald-500'
+            className={`text-xs font-semibold rounded-xl px-2.5 py-1.5 focus:outline-none shrink-0 cursor-pointer border transition ${
+              categoryFilter !== 'all'
+                ? (isLight ? 'border-emerald-600 bg-emerald-50 text-emerald-950 font-bold' : 'border-emerald-500 bg-emerald-500/15 text-emerald-300 font-bold')
+                : (isLight ? 'bg-white border-slate-200 text-slate-700' : 'bg-slate-900/90 border-slate-800 text-slate-300')
             }`}
           >
-            <option value="all">Category / Goal: All</option>
+            <option value="all">🏷️ Category: All</option>
             <optgroup label="Expense Categories">
               {DEFAULT_CATEGORIES.filter(c => c.type === 'expense').map(c => (
                 <option key={c.id} value={c.id}>{c.name}</option>
@@ -298,96 +314,115 @@ export default function TransactionsView({
             </optgroup>
           </select>
         </div>
+      </div>
 
-        {/* Month Selector Pills (if multiple months exist) */}
-        {allAvailableMonths.length > 1 && (
-          <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar py-0.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 shrink-0 mr-1 flex items-center space-x-1">
-              <Calendar className="w-3 h-3" />
-              <span>Month:</span>
+      {/* 2. Spacious, Professional Financial Overview Card */}
+      <div className={`p-4 rounded-3xl border transition-all ${
+        isLight 
+          ? 'bg-white border-slate-200/90 shadow-xs' 
+          : 'glass-card border-slate-800 text-white'
+      }`}>
+        {/* Top line: Count & Action Controls */}
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/80">
+          <div className="flex items-center space-x-2">
+            <span className={`text-xs font-extrabold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              {filtered.length}
             </span>
-            <button
-              onClick={() => setSelectedMonthFilter('all')}
-              className={`px-2.5 py-0.5 rounded-lg text-[11px] font-bold shrink-0 transition ${
-                selectedMonthFilter === 'all'
-                  ? (isLight ? 'bg-emerald-700 text-white' : 'bg-emerald-500 text-slate-950')
-                  : (isLight ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-slate-800 text-slate-400 hover:bg-slate-700')
-              }`}
-            >
-              All Months
-            </button>
-            {allAvailableMonths.map(mk => (
+            <span className={`text-xs font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+              Transactions
+            </span>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            {groupedByMonth.length > 1 && (
               <button
-                key={mk}
-                onClick={() => {
-                  setSelectedMonthFilter(mk);
-                  setOpenMonths(prev => ({ ...prev, [mk]: true }));
-                }}
-                className={`px-2.5 py-0.5 rounded-lg text-[11px] font-bold shrink-0 transition ${
-                  selectedMonthFilter === mk
-                    ? (isLight ? 'bg-emerald-700 text-white' : 'bg-emerald-500 text-slate-950')
-                    : (isLight ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-slate-800 text-slate-400 hover:bg-slate-700')
+                onClick={handleToggleAll}
+                className={`px-2.5 py-1 rounded-xl border text-[11px] font-bold transition flex items-center space-x-1 active-press ${
+                  isLight 
+                    ? 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100' 
+                    : 'bg-slate-800/90 border-slate-700 text-slate-200 hover:bg-slate-800'
                 }`}
               >
-                {formatMonthShort(mk)}
+                <ChevronsUpDown className="w-3.5 h-3.5" />
+                <span>{isAllOpen ? 'Collapse All' : 'Expand All'}</span>
               </button>
-            ))}
-          </div>
-        )}
-      </div>
+            )}
 
-      {/* 2. Summary Banner with Expand / Collapse All Controls */}
-      <div className={`px-3.5 py-2 rounded-2xl border flex items-center justify-between text-[11px] ${
-        isLight 
-          ? 'bg-white border-slate-200/90 text-slate-600 shadow-xs' 
-          : 'bg-slate-900/60 border-slate-800/80 text-slate-400'
-      }`}>
-        <div className="flex items-center space-x-2">
-          <span><strong>{filtered.length}</strong> record{filtered.length !== 1 ? 's' : ''}</span>
-          {groupedByMonth.length > 1 && (
             <button
-              onClick={handleToggleAll}
-              className={`px-2 py-0.5 rounded-lg border text-[10px] font-bold transition flex items-center space-x-1 ${
-                isLight ? 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100' : 'bg-slate-800 border-slate-700 text-slate-300'
+              onClick={() => exportTransactionsToCSV(filtered)}
+              title="Download CSV"
+              className={`p-1.5 rounded-xl border transition active-press ${
+                isLight 
+                  ? 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100' 
+                  : 'bg-slate-800/90 border-slate-700 text-slate-300 hover:bg-slate-800'
               }`}
             >
-              <ChevronsUpDown className="w-3 h-3" />
-              <span>{isAllOpen ? 'Collapse All' : 'Open All'}</span>
+              <Download className="w-3.5 h-3.5" />
             </button>
-          )}
+          </div>
         </div>
 
-        <div className="flex items-center space-x-2">
-          {totalFilteredExpense > 0 && (
-            <span className={`${isLight ? 'text-slate-900' : 'text-rose-400'} font-bold`}>-{formatAmount(totalFilteredExpense, currency)}</span>
-          )}
-          {totalFilteredIncome > 0 && (
-            <span className={`${isLight ? 'text-emerald-700' : 'text-emerald-400'} font-bold`}>+{formatAmount(totalFilteredIncome, currency)}</span>
-          )}
-          {totalFilteredSavings > 0 && (
-            <span className="text-amber-600 font-bold">🌱 {formatAmount(totalFilteredSavings, currency)}</span>
-          )}
-          <button
-            onClick={() => exportTransactionsToCSV(filtered)}
-            title="Download CSV"
-            className={`p-1 rounded transition ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-slate-800 text-slate-300'}`}
-          >
-            <Download className="w-3.5 h-3.5" />
-          </button>
+        {/* Bottom line: 3 Spacious Metric Chips with High-Contrast Colors */}
+        <div className="grid grid-cols-3 gap-2.5 pt-3">
+          {/* Spent Chip */}
+          <div className={`p-2.5 rounded-2xl border text-center ${
+            isLight ? 'bg-rose-50/50 border-rose-100' : 'bg-rose-950/20 border-rose-900/40'
+          }`}>
+            <span className={`text-[10px] font-bold uppercase tracking-wider block ${isLight ? 'text-rose-700' : 'text-rose-400'}`}>
+              Spent
+            </span>
+            <span className={`text-xs font-extrabold block mt-0.5 truncate ${
+              isLight ? 'text-rose-700' : 'text-rose-400'
+            }`}>
+              {totalFilteredExpense > 0 ? `-${formatAmount(totalFilteredExpense, currency)}` : `${currency}0`}
+            </span>
+          </div>
+
+          {/* Income Chip */}
+          <div className={`p-2.5 rounded-2xl border text-center ${
+            isLight ? 'bg-emerald-50/50 border-emerald-100' : 'bg-emerald-950/20 border-emerald-900/40'
+          }`}>
+            <span className={`text-[10px] font-bold uppercase tracking-wider block ${isLight ? 'text-emerald-700' : 'text-emerald-400'}`}>
+              Income
+            </span>
+            <span className={`text-xs font-extrabold block mt-0.5 truncate ${
+              isLight ? 'text-emerald-700' : 'text-emerald-400'
+            }`}>
+              {totalFilteredIncome > 0 ? `+${formatAmount(totalFilteredIncome, currency)}` : `${currency}0`}
+            </span>
+          </div>
+
+          {/* Saved Chip */}
+          <div className={`p-2.5 rounded-2xl border text-center ${
+            isLight ? 'bg-amber-50/50 border-amber-100' : 'bg-amber-950/20 border-amber-900/40'
+          }`}>
+            <span className={`text-[10px] font-bold uppercase tracking-wider block ${isLight ? 'text-amber-800' : 'text-amber-300'}`}>
+              Saved 🌱
+            </span>
+            <span className={`text-xs font-extrabold block mt-0.5 truncate ${
+              isLight ? 'text-amber-700' : 'text-amber-400'
+            }`}>
+              {totalFilteredSavings > 0 ? `+${formatAmount(totalFilteredSavings, currency)}` : `${currency}0`}
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* 3. Monthly Categorized Sections (Open & Closeable Accordions) */}
+      {/* 3. Monthly Accordion Sections (Spacious, No Truncation, High-Contrast) */}
       {groupedByMonth.length === 0 ? (
-        <div className={`p-10 text-center rounded-2xl border ${
+        <div className={`p-10 text-center rounded-3xl border ${
           isLight ? 'bg-white border-slate-200/90 shadow-xs' : 'glass-card border-slate-800'
         }`}>
-          <p className="text-xs text-slate-400 mb-2">No transactions match your criteria.</p>
+          <p className={`text-xs mb-3 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+            No transactions match your current filters.
+          </p>
           <button
             onClick={onOpenAddModal}
-            className="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl active-press"
+            className={`px-4 py-2.5 text-xs font-bold rounded-xl active-press shadow-md ${
+              isLight ? 'bg-slate-900 text-white' : 'bg-emerald-500 text-slate-950 font-extrabold'
+            }`}
           >
-            Add Record
+            Add New Record
           </button>
         </div>
       ) : (
@@ -405,98 +440,111 @@ export default function TransactionsView({
                     : 'glass-card border-slate-800'
                 }`}
               >
-                {/* Month Collapsible Header Banner - Tap to Open or Close */}
+                {/* Month Collapsible Header Banner - 2-tier spacious layout */}
                 <button
                   type="button"
                   onClick={() => toggleMonth(monthGroup.monthKey)}
-                  className={`w-full p-3.5 flex items-center justify-between text-left transition select-none ${
+                  className={`w-full p-4 flex flex-col space-y-2 text-left transition select-none ${
                     isOpen
                       ? (isLight ? 'bg-slate-50/70 border-b border-slate-100' : 'bg-slate-900/60 border-b border-slate-800/80')
                       : (isLight ? 'hover:bg-slate-50/60' : 'hover:bg-slate-800/40')
                   }`}
                 >
-                  <div className="flex items-center space-x-3 min-w-0">
-                    <div className={`w-9 h-9 rounded-2xl flex items-center justify-center shrink-0 border transition ${
-                      isOpen
-                        ? (isLight ? 'bg-slate-900 text-white border-slate-900 shadow-xs' : 'bg-emerald-500 text-slate-950 border-emerald-400')
-                        : (isLight ? 'bg-slate-100 text-slate-700 border-slate-200' : 'bg-slate-800 text-slate-300 border-slate-700')
-                    }`}>
-                      {isOpen ? <FolderOpen className="w-4 h-4" /> : <FolderClosed className="w-4 h-4" />}
-                    </div>
+                  {/* Top Line: Month Title & Badges on Left, Chevron Toggle on Right */}
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center space-x-2.5 min-w-0">
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border transition ${
+                        isOpen
+                          ? (isLight ? 'bg-slate-900 text-white border-slate-900 shadow-xs' : 'bg-emerald-500 text-slate-950 border-emerald-400 font-bold')
+                          : (isLight ? 'bg-slate-100 text-slate-700 border-slate-200' : 'bg-slate-800 text-slate-300 border-slate-700')
+                      }`}>
+                        {isOpen ? <FolderOpen className="w-4 h-4" /> : <FolderClosed className="w-4 h-4" />}
+                      </div>
 
-                    <div className="min-w-0">
+                      {/* Full Month Name (NO TRUNCATION!) */}
                       <div className="flex items-center space-x-2">
-                        <h3 className={`text-xs font-extrabold truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                        <h3 className={`text-sm font-extrabold ${isLight ? 'text-slate-900' : 'text-white'}`}>
                           {monthGroup.label}
                         </h3>
                         {isCurrent && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${
+                            isLight 
+                              ? 'bg-emerald-100 text-emerald-800 border-emerald-300' 
+                              : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                          }`}>
                             Current
                           </span>
                         )}
-                        <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full border ${
-                          isOpen
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            : 'bg-slate-100 text-slate-600 border-slate-200'
-                        }`}>
-                          {isOpen ? 'Open' : 'Closed'}
-                        </span>
                       </div>
-                      <p className={`text-[11px] truncate mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                        {monthGroup.transactions.length} record{monthGroup.transactions.length !== 1 ? 's' : ''} • Spent: <strong className={isLight ? 'text-slate-800' : 'text-slate-200'}>{formatAmount(monthGroup.totalExpense, currency)}</strong>
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Right side: Totals & Open/Close Chevron */}
-                  <div className="flex items-center space-x-2.5 shrink-0 pl-2">
-                    <div className="text-right">
-                      {monthGroup.totalExpense > 0 && (
-                        <span className="text-xs font-bold text-slate-900 block">
-                          -{formatAmount(monthGroup.totalExpense, currency)}
-                        </span>
-                      )}
-                      {monthGroup.totalIncome > 0 && (
-                        <span className="text-[10px] font-bold text-emerald-700 block">
-                          +{formatAmount(monthGroup.totalIncome, currency)}
-                        </span>
-                      )}
                     </div>
 
+                    {/* Expand/Collapse Chevron Button */}
                     <div className={`p-1.5 rounded-xl border flex items-center justify-center transition-transform duration-200 ${
                       isOpen
                         ? (isLight ? 'bg-slate-200/80 border-slate-300 text-slate-800 rotate-180' : 'bg-slate-800 border-slate-700 text-white rotate-180')
                         : (isLight ? 'bg-slate-100 border-slate-200 text-slate-500' : 'bg-slate-900 border-slate-800 text-slate-400')
                     }`}>
-                      <ChevronDown className="w-3.5 h-3.5 stroke-[2.5]" />
+                      <ChevronDown className="w-4 h-4 stroke-[2.5]" />
+                    </div>
+                  </div>
+
+                  {/* Bottom Line: Record Count & High-Contrast Amount Badges */}
+                  <div className="flex items-center justify-between w-full pt-1">
+                    <span className={`text-[11px] font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                      {monthGroup.transactions.length} record{monthGroup.transactions.length !== 1 ? 's' : ''}
+                    </span>
+
+                    {/* Month Totals: Explicit High-Contrast Colors (Vibrant and readable in Dark Mode!) */}
+                    <div className="flex items-center space-x-3 text-right">
+                      {monthGroup.totalExpense > 0 && (
+                        <span className={`text-xs font-extrabold ${
+                          isLight ? 'text-rose-700' : 'text-rose-400'
+                        }`}>
+                          -{formatAmount(monthGroup.totalExpense, currency)}
+                        </span>
+                      )}
+                      {monthGroup.totalIncome > 0 && (
+                        <span className={`text-xs font-extrabold ${
+                          isLight ? 'text-emerald-700' : 'text-emerald-400'
+                        }`}>
+                          +{formatAmount(monthGroup.totalIncome, currency)}
+                        </span>
+                      )}
+                      {monthGroup.totalSavings > 0 && (
+                        <span className={`text-xs font-extrabold ${
+                          isLight ? 'text-amber-700' : 'text-amber-400'
+                        }`}>
+                          🌱 +{formatAmount(monthGroup.totalSavings, currency)}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </button>
 
-                {/* Expanded Month Body - Grouped by Day */}
+                {/* Expanded Month Body - Grouped by Day with generous breathing room */}
                 {isOpen && (
-                  <div className="p-3 space-y-3 animate-fade-in">
+                  <div className="p-3.5 space-y-3.5 animate-fade-in">
                     {Object.entries(monthGroup.days).map(([dateStr, items]) => {
                       const dayExpense = items
                         .filter(t => t.type === 'expense')
                         .reduce((sum, t) => sum + t.amount, 0);
 
                       return (
-                        <div key={dateStr} className="space-y-1.5">
-                          {/* Date header with day total */}
+                        <div key={dateStr} className="space-y-2">
+                          {/* Day Header with day total */}
                           <div className={`flex items-center justify-between px-1 text-[11px] font-semibold ${
                             isLight ? 'text-slate-500' : 'text-slate-400'
                           }`}>
                             <span>{getDateHeader(dateStr)}</span>
                             {dayExpense > 0 && (
                               <span className="font-medium">
-                                Spent: <strong className={isLight ? 'text-slate-800' : 'text-slate-200'}>{formatAmount(dayExpense, currency)}</strong>
+                                Day Spent: <strong className={isLight ? 'text-rose-700' : 'text-rose-400'}>{formatAmount(dayExpense, currency)}</strong>
                               </span>
                             )}
                           </div>
 
                           {/* Items for this day */}
-                          <div className="space-y-1.5">
+                          <div className="space-y-2">
                             {items.map((tx) => {
                               const isSaving = tx.type === 'saving';
                               const isExpense = tx.type === 'expense';
@@ -525,7 +573,7 @@ export default function TransactionsView({
                               return (
                                 <div
                                   key={tx.id}
-                                  className={`p-3 rounded-2xl border flex items-center justify-between transition group ${
+                                  className={`p-3.5 rounded-2xl border flex items-center justify-between transition group ${
                                     isLight 
                                       ? 'bg-slate-50/50 border-slate-200/90 hover:bg-white hover:border-slate-300 shadow-2xs' 
                                       : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
@@ -538,7 +586,7 @@ export default function TransactionsView({
                                       style={{ backgroundColor: isLight ? `${displayColor}18` : `${displayColor}25` }}
                                     >
                                       {isSaving ? (
-                                        <PiggyBank className="w-5 h-5 text-emerald-600" />
+                                        <PiggyBank className="w-5 h-5 text-emerald-400" />
                                       ) : (
                                         <CategoryIcon name={displayIcon} className="w-5 h-5" color={displayColor} />
                                       )}
@@ -550,7 +598,7 @@ export default function TransactionsView({
                                         </span>
                                         <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium border ${
                                           isSaving
-                                            ? (isLight ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30')
+                                            ? (isLight ? 'bg-amber-50 text-amber-900 border-amber-200' : 'bg-amber-500/15 text-amber-300 border-amber-500/30')
                                             : (isLight 
                                                 ? 'bg-white text-slate-600 border-slate-200 shadow-3xs' 
                                                 : 'bg-slate-800 text-slate-400 border-slate-700')
@@ -558,20 +606,20 @@ export default function TransactionsView({
                                           {isSaving ? `Saved from ${tx.paymentMethod || 'UPI'}` : (tx.paymentMethod || 'UPI')}
                                         </span>
                                       </div>
-                                      <p className={`text-[11px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                                      <p className={`text-[11px] truncate mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                                         {tx.note || tx.time || 'No description'}
                                       </p>
                                     </div>
                                   </div>
 
-                                  {/* Right: Amount & Actions */}
+                                  {/* Right: Amount & Actions with High-Contrast Colors */}
                                   <div className="flex items-center space-x-2 shrink-0">
                                     <div className="text-right">
                                       <div className={`text-xs font-extrabold ${
                                         isSaving
-                                          ? 'text-emerald-700'
+                                          ? (isLight ? 'text-emerald-700' : 'text-emerald-400')
                                           : isExpense 
-                                          ? (isLight ? 'text-slate-900' : 'text-rose-400') 
+                                          ? (isLight ? 'text-rose-700' : 'text-rose-400') 
                                           : (isLight ? 'text-emerald-700' : 'text-emerald-400')
                                       }`}>
                                         {isSaving ? '🌱 +' : isExpense ? '-' : '+'}{formatAmount(tx.amount, currency)}
@@ -592,7 +640,7 @@ export default function TransactionsView({
                                       className={`p-1.5 rounded-lg transition active-press ${
                                         isLight
                                           ? 'hover:bg-slate-200/70 text-slate-400 hover:text-slate-700'
-                                          : 'hover:bg-slate-800 text-slate-500 hover:text-slate-300'
+                                          : 'hover:bg-slate-800 text-slate-400 hover:text-white'
                                       }`}
                                     >
                                       <Edit2 className="w-3.5 h-3.5" />
@@ -617,7 +665,7 @@ export default function TransactionsView({
                                           ? 'bg-rose-500 text-white'
                                           : isLight
                                           ? 'hover:bg-slate-200/70 text-slate-400 hover:text-rose-500'
-                                          : 'hover:bg-slate-800 text-slate-500 hover:text-rose-400'
+                                          : 'hover:bg-slate-800 text-slate-400 hover:text-rose-400'
                                       }`}
                                     >
                                       <Trash2 className="w-3.5 h-3.5" />

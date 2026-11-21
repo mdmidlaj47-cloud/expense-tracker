@@ -197,19 +197,19 @@ export default function SavingsView({
         }`}>
           <div>
             <span className="text-[11px] opacity-75 block">Saved This Month:</span>
-            <span className="font-bold text-emerald-700">+{formatAmount(thisMonthSaved, currency)}</span>
+            <span className={`font-bold ${isLight ? 'text-emerald-700' : 'text-emerald-400'}`}>+{formatAmount(thisMonthSaved, currency)}</span>
           </div>
 
           <button
             onClick={() => onOpenAddModal({ type: 'saving' })}
-            className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center space-x-1 transition active-press shadow-xs ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center space-x-1.5 transition active-press shadow-xs ${
               isLight
                 ? 'bg-emerald-700 hover:bg-emerald-800 text-white shadow-emerald-900/10'
                 : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950'
             }`}
           >
             <Plus className="w-3.5 h-3.5 stroke-[3]" />
-            <span>+ Save Money</span>
+            <span>Save Money</span>
           </button>
         </div>
       </div>
@@ -326,7 +326,7 @@ export default function SavingsView({
               {/* Progress Bar */}
               <div className="space-y-1">
                 <div className="flex items-center justify-between text-[11px]">
-                  <span className="font-extrabold text-emerald-700">
+                  <span className={`font-extrabold ${isLight ? 'text-emerald-700' : 'text-emerald-400'}`}>
                     {formatAmount(goal.savedForGoal, currency)}
                   </span>
                   <span className="font-semibold text-slate-500">
@@ -404,7 +404,9 @@ export default function SavingsView({
 
                   <div className="flex items-center space-x-2 shrink-0">
                     <div className="text-right">
-                      <span className="text-xs font-extrabold text-emerald-700 block">
+                      <span className={`text-xs font-extrabold block ${
+                        isLight ? 'text-emerald-700' : 'text-emerald-400'
+                      }`}>
                         +{formatAmount(tx.amount, currency)}
                       </span>
                       <span className="text-[10px] text-slate-400 block">
