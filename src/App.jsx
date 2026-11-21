@@ -65,14 +65,36 @@ export default function App() {
   const [activeTab, setActiveTab] = useState(initialNav.tab);
   const [manageSubTab, setManageSubTab] = useState(initialNav.subTab);
 
-  const [transactions, setTransactions] = useState([]);
-  const [budgets, setBudgets] = useState({});
-  const [recurring, setRecurring] = useState([]);
-  const [savingsGoals, setSavingsGoals] = useState([]);
-  const [settings, setSettings] = useState({ currency: '₹', currencyCode: 'INR' });
+  const [transactions, setTransactions] = useState(() => getStoredTransactions());
+  const [budgets, setBudgets] = useState(() => getStoredBudgets());
+  const [recurring, setRecurring] = useState(() => getStoredRecurring());
+  const [savingsGoals, setSavingsGoals] = useState(() => getStoredSavingsGoals());
+  const [settings, setSettings] = useState(() => getStoredSettings());
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
+
+  // Sync document background and meta theme-color with current theme dynamically
+  useEffect(() => {
+    const themeBgs = {
+      midnight: '#060b17',
+      sunset: '#0c0807',
+      amoled: '#000000',
+      emerald: '#020617',
+      light: '#f8fafc'
+    };
+    const currentTheme = settings.theme || 'light';
+    const bg = themeBgs[currentTheme] || (currentTheme === 'light' ? '#f8fafc' : '#020617');
+    const text = currentTheme === 'light' ? '#0f172a' : '#f8fafc';
+    document.documentElement.style.backgroundColor = bg;
+    document.documentElement.style.color = text;
+    if (document.body) {
+      document.body.style.backgroundColor = bg;
+      document.body.style.color = text;
+    }
+    const meta = document.getElementById('theme-color-meta') || document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', bg);
+  }, [settings.theme]);
 
   // Refs for tracking navigation state in popstate listener without stale closures
   const activeTabRef = useRef(activeTab);
