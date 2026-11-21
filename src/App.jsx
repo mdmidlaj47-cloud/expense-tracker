@@ -359,6 +359,7 @@ export default function App() {
               savingsGoals={savingsGoals}
               currency={settings.currency || '₹'}
               theme={currentTheme}
+              currentMonth={currentMonth}
               onSelectTransaction={handleEditClick}
               onDeleteTransaction={handleDeleteTransaction}
               onOpenAddModal={handleOpenAddModal}
