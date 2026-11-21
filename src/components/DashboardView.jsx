@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { 
   ArrowUpRight, 
   ArrowDownLeft, 
@@ -13,14 +13,21 @@ import {
   Calendar,
   Activity,
   Layers,
-  Edit2
+  Edit2,
+  PiggyBank,
+  Smartphone,
+  Banknote,
+  CreditCard,
+  Building2,
+  PieChart
 } from 'lucide-react';
-import { formatAmount, DEFAULT_CATEGORIES } from '../utils/storage';
+import { formatAmount, DEFAULT_CATEGORIES, DEFAULT_SAVINGS_GOALS } from '../utils/storage';
 import CategoryIcon from './CategoryIcon';
 
 export default function DashboardView({ 
-  transactions, 
-  budgets, 
+  transactions = [], 
+  budgets = {}, 
+  savingsGoals = DEFAULT_SAVINGS_GOALS,
   currency = '₹', 
   currentMonth,
   theme = 'light',
@@ -31,11 +38,12 @@ export default function DashboardView({
   onNavigateTab
 }) {
   const isLight = theme === 'light';
+  const [walletViewMode, setWalletViewMode] = useState('balance'); // 'balance' | 'income'
 
   // Filter transactions for current month (YYYY-MM)
   const monthTransactions = transactions.filter(t => t.date.startsWith(currentMonth));
 
-  // Totals
+  // Totals for current month
   const totalIncome = monthTransactions
     .filter(t => t.type === 'income')
     .reduce((sum, t) => sum + t.amount, 0);
@@ -44,7 +52,11 @@ export default function DashboardView({
     .filter(t => t.type === 'expense')
     .reduce((sum, t) => sum + t.amount, 0);
 
-  // Overall lifetime balance
+  const monthSavings = monthTransactions
+    .filter(t => t.type === 'saving')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  // Overall lifetime totals
   const lifetimeIncome = transactions
     .filter(t => t.type === 'income')
     .reduce((sum, t) => sum + t.amount, 0);
@@ -53,7 +65,14 @@ export default function DashboardView({
     .filter(t => t.type === 'expense')
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const netBalance = lifetimeIncome - lifetimeExpense;
+  const lifetimeSavings = transactions
+    .filter(t => t.type === 'saving')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  // Spendable Balance = (Income - Expense - Savings)
+  const netSpendableBalance = lifetimeIncome - lifetimeExpense - lifetimeSavings;
+  // Total Net Worth = (Spendable + Savings) = (Income - Expense)
+  const totalNetWorth = lifetimeIncome - lifetimeExpense;
 
   // Monthly Budget calculations
   const monthlyCap = budgets.overall || 45000;
@@ -74,6 +93,54 @@ export default function DashboardView({
     ? Math.max(0, Math.round(((totalIncome - totalExpense) / totalIncome) * 100)) 
     : 0;
 
+  // Payment Method Breakdown: UPI, Cash, Cards, NetBanking
+  const methodStats = useMemo(() => {
+    const list = [
+      { id: 'UPI', label: 'UPI / GPay', icon: Smartphone, color: '#10b981', bg: 'bg-emerald-500/10', border: 'border-emerald-200' },
+      { id: 'Cash', label: 'Cash in Hand', icon: Banknote, color: '#f59e0b', bg: 'bg-amber-500/10', border: 'border-amber-200' },
+      { id: 'Bank', label: 'Bank & Cards', icon: Building2, color: '#06b6d4', bg: 'bg-cyan-500/10', border: 'border-cyan-200', alias: ['Card', 'NetBanking'] }
+    ];
+
+    return list.map(item => {
+      const matchMethod = (pm) => {
+        if (item.alias) return item.alias.includes(pm) || pm === item.id;
+        if (item.id === 'UPI') return pm === 'UPI' || !pm;
+        return pm === item.id;
+      };
+
+      const inc = transactions.filter(t => t.type === 'income' && matchMethod(t.paymentMethod)).reduce((s, t) => s + t.amount, 0);
+      const exp = transactions.filter(t => t.type === 'expense' && matchMethod(t.paymentMethod)).reduce((s, t) => s + t.amount, 0);
+      const sav = transactions.filter(t => t.type === 'saving' && matchMethod(t.paymentMethod)).reduce((s, t) => s + t.amount, 0);
+      const balance = inc - exp - sav;
+
+      const mInc = monthTransactions.filter(t => t.type === 'income' && matchMethod(t.paymentMethod)).reduce((s, t) => s + t.amount, 0);
+      const mExp = monthTransactions.filter(t => t.type === 'expense' && matchMethod(t.paymentMethod)).reduce((s, t) => s + t.amount, 0);
+
+      return {
+        ...item,
+        income: inc,
+        expense: exp,
+        saved: sav,
+        balance,
+        monthIncome: mInc,
+        monthExpense: mExp
+      };
+    });
+  }, [transactions, monthTransactions]);
+
+  // Expense share by payment method (Percentages)
+  const expenseBreakdown = useMemo(() => {
+    const total = totalExpense || 1;
+    return methodStats.map(m => {
+      const pct = Math.round((m.monthExpense / total) * 100);
+      return {
+        ...m,
+        spent: m.monthExpense,
+        percent: pct
+      };
+    });
+  }, [methodStats, totalExpense]);
+
   // Recent 6 transactions
   const recentTransactions = [...transactions]
     .sort((a, b) => new Date(`${b.date}T${b.time || '00:00'}`) - new Date(`${a.date}T${a.time || '00:00'}`))
@@ -90,7 +157,7 @@ export default function DashboardView({
 
     return targets.map(t => {
       const cat = DEFAULT_CATEGORIES.find(c => c.id === t.id);
-      const spent = monthTransactions.filter(tx => tx.categoryId === t.id).reduce((s, tx) => s + tx.amount, 0);
+      const spent = monthTransactions.filter(tx => tx.categoryId === t.id && tx.type === 'expense').reduce((s, tx) => s + tx.amount, 0);
       return {
         id: t.id,
         name: cat ? cat.name : t.defaultName,
@@ -103,42 +170,18 @@ export default function DashboardView({
     });
   }, [monthTransactions]);
 
-  // Weekly data for Bento layout (Monday to Sunday)
-  const weeklyStats = useMemo(() => {
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const today = new Date();
-    const dayOfWeek = (today.getDay() + 6) % 7;
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - dayOfWeek);
-
-    const weekData = days.map((label, idx) => {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + idx);
-      const dStr = d.toISOString().slice(0, 10);
-      const spent = transactions
-        .filter(t => t.date === dStr && t.type === 'expense')
-        .reduce((s, t) => s + t.amount, 0);
-      return { label, spent, isToday: idx === dayOfWeek };
-    });
-
-    const maxSpent = Math.max(...weekData.map(w => w.spent), 100);
-    const totalWeek = weekData.reduce((s, w) => s + w.spent, 0);
-    return { weekData, maxSpent, totalWeek };
-  }, [transactions]);
-
-  // Top 3 category budget health for Bento layout
-  const topCategoryBudgets = useMemo(() => {
-    return DEFAULT_CATEGORIES
-      .filter(c => c.type === 'expense' && (budgets[c.id] || 0) > 0)
-      .map(c => {
-        const limit = budgets[c.id] || 1;
-        const spent = monthTransactions.filter(t => t.categoryId === c.id).reduce((s, t) => s + t.amount, 0);
-        const ratio = Math.min(1.2, spent / limit);
-        const percent = Math.round((spent / limit) * 100);
-        return { ...c, spent, limit, ratio, percent };
-      })
-      .slice(0, 3);
-  }, [budgets, monthTransactions]);
+  // Active top savings goal for dashboard preview
+  const topSavingsGoal = useMemo(() => {
+    const goals = savingsGoals.length > 0 ? savingsGoals : DEFAULT_SAVINGS_GOALS;
+    const first = goals[0];
+    if (!first) return null;
+    const saved = transactions
+      .filter(t => t.type === 'saving' && (t.goalId === first.id || t.categoryId === first.id))
+      .reduce((s, t) => s + t.amount, 0);
+    const target = first.targetAmount || 10000;
+    const pct = Math.min(100, Math.round((saved / target) * 100));
+    return { ...first, saved, target, pct };
+  }, [savingsGoals, transactions]);
 
   // Theme styling helpers
   const getBalanceCardStyle = () => {
@@ -167,86 +210,286 @@ export default function DashboardView({
     }
   };
 
-  const getAccentBgColor = () => {
-    switch (theme) {
-      case 'midnight': return 'bg-cyan-500';
-      case 'sunset': return 'bg-amber-500';
-      case 'light': return 'bg-emerald-700';
-      case 'amoled': return 'bg-emerald-500';
-      default: return 'bg-emerald-600';
-    }
-  };
-
   return (
     <div className="space-y-4 pb-24">
-      {/* 1. Total Balance Sage Hero Card */}
+      {/* 1. Total Spendable Balance Hero Card */}
       <div className={`relative overflow-hidden rounded-3xl p-5 border transition-all duration-300 ${getBalanceCardStyle()}`}>
         <div className="flex items-center justify-between text-xs font-semibold mb-1">
           <span className={`flex items-center space-x-1.5 ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
             <Wallet className="w-4 h-4" />
-            <span>Net Balance</span>
+            <span>Available Balance</span>
           </span>
-          {savingsRate > 0 && (
-            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border flex items-center space-x-1 ${
-              isLight 
-                ? 'bg-white/80 text-emerald-900 border-emerald-300/80 shadow-xs' 
-                : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-            }`}>
-              <Sparkles className="w-3 h-3" />
-              <span>{savingsRate}% Saved</span>
-            </span>
-          )}
+          <div className="flex items-center space-x-1.5">
+            {lifetimeSavings > 0 && (
+              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border flex items-center space-x-1 ${
+                isLight 
+                  ? 'bg-amber-100/90 text-amber-900 border-amber-300/80 shadow-xs' 
+                  : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+              }`}>
+                <span>🌱 {formatAmount(lifetimeSavings, currency)} Saved</span>
+              </span>
+            )}
+            {savingsRate > 0 && (
+              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border flex items-center space-x-1 ${
+                isLight 
+                  ? 'bg-white/80 text-emerald-900 border-emerald-300/80 shadow-xs' 
+                  : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+              }`}>
+                <Sparkles className="w-3 h-3" />
+                <span>{savingsRate}% Rate</span>
+              </span>
+            )}
+          </div>
         </div>
 
-        <div className={`text-3xl font-extrabold tracking-tight mt-1 mb-4 ${isLight ? 'text-slate-950' : 'text-white'}`}>
-          {formatAmount(netBalance, currency)}
+        <div className={`text-3xl font-extrabold tracking-tight mt-1 mb-1 ${isLight ? 'text-slate-950' : 'text-white'}`}>
+          {formatAmount(netSpendableBalance, currency)}
         </div>
 
-        {/* Month Flow Pills (Matching the Scandinavian design) */}
-        <div className={`grid grid-cols-2 gap-2.5 pt-3 border-t ${isLight ? 'border-emerald-900/10' : 'border-white/10'}`}>
-          <div className={`p-2.5 rounded-2xl border flex items-center space-x-2.5 ${
-            isLight
-              ? 'bg-white/85 border-emerald-200/80 shadow-xs'
-              : 'border-white/10 bg-black/20'
+        {lifetimeSavings > 0 && (
+          <p className={`text-[11px] font-medium mb-3 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+            Total Net Worth: <strong className={isLight ? 'text-slate-900' : 'text-white'}>{formatAmount(totalNetWorth, currency)}</strong> (includes vault savings)
+          </p>
+        )}
+
+        {/* 3-Column Month Flow Pills (Income, Expense, Saved) */}
+        <div className={`grid grid-cols-3 gap-2 pt-3 border-t ${isLight ? 'border-emerald-900/10' : 'border-white/10'}`}>
+          {/* Income Pill */}
+          <div className={`p-2 rounded-2xl border flex flex-col justify-center ${
+            isLight ? 'bg-white/90 border-emerald-200/80 shadow-xs' : 'border-white/10 bg-black/20'
           }`}>
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-              isLight ? 'bg-emerald-100 text-emerald-800' : 'bg-emerald-500/20 text-emerald-400'
-            }`}>
-              <ArrowDownLeft className="w-4 h-4 stroke-[2.8]" />
-            </div>
-            <div className="min-w-0">
-              <span className={`text-[10px] uppercase font-bold block ${isLight ? 'text-emerald-900/70' : 'opacity-70'}`}>
-                Income ↑
-              </span>
-              <span className={`text-xs font-bold truncate block ${isLight ? 'text-emerald-800' : 'text-emerald-400'}`}>
-                +{formatAmount(totalIncome, currency)}
-              </span>
-            </div>
+            <span className={`text-[9px] uppercase font-bold flex items-center space-x-0.5 ${isLight ? 'text-emerald-900/80' : 'text-emerald-400'}`}>
+              <ArrowDownLeft className="w-3 h-3 stroke-[2.8]" />
+              <span>Income</span>
+            </span>
+            <span className={`text-xs font-bold truncate mt-0.5 ${isLight ? 'text-emerald-800' : 'text-emerald-400'}`}>
+              +{formatAmount(totalIncome, currency)}
+            </span>
           </div>
 
-          <div className={`p-2.5 rounded-2xl border flex items-center space-x-2.5 ${
-            isLight
-              ? 'bg-white/85 border-rose-200/80 shadow-xs'
-              : 'border-white/10 bg-black/20'
+          {/* Expense Pill */}
+          <div className={`p-2 rounded-2xl border flex flex-col justify-center ${
+            isLight ? 'bg-white/90 border-rose-200/80 shadow-xs' : 'border-white/10 bg-black/20'
           }`}>
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-              isLight ? 'bg-rose-100 text-rose-800' : 'bg-rose-500/20 text-rose-400'
-            }`}>
-              <ArrowUpRight className="w-4 h-4 stroke-[2.8]" />
-            </div>
-            <div className="min-w-0">
-              <span className={`text-[10px] uppercase font-bold block ${isLight ? 'text-rose-900/70' : 'opacity-70'}`}>
-                Expense ↓
-              </span>
-              <span className={`text-xs font-bold truncate block ${isLight ? 'text-rose-700' : 'text-rose-400'}`}>
-                -{formatAmount(totalExpense, currency)}
-              </span>
-            </div>
+            <span className={`text-[9px] uppercase font-bold flex items-center space-x-0.5 ${isLight ? 'text-rose-900/80' : 'text-rose-400'}`}>
+              <ArrowUpRight className="w-3 h-3 stroke-[2.8]" />
+              <span>Expense</span>
+            </span>
+            <span className={`text-xs font-bold truncate mt-0.5 ${isLight ? 'text-rose-700' : 'text-rose-400'}`}>
+              -{formatAmount(totalExpense, currency)}
+            </span>
+          </div>
+
+          {/* Savings Pill */}
+          <div 
+            onClick={() => onNavigateTab('savings')}
+            className={`p-2 rounded-2xl border flex flex-col justify-center cursor-pointer active-press ${
+              isLight ? 'bg-white/90 border-amber-200/80 shadow-xs' : 'border-white/10 bg-black/20'
+            }`}
+          >
+            <span className={`text-[9px] uppercase font-bold flex items-center space-x-0.5 ${isLight ? 'text-amber-900/80' : 'text-amber-400'}`}>
+              <span>🌱</span>
+              <span>Saved</span>
+            </span>
+            <span className={`text-xs font-bold truncate mt-0.5 ${isLight ? 'text-amber-800' : 'text-amber-300'}`}>
+              +{formatAmount(monthSavings, currency)}
+            </span>
           </div>
         </div>
       </div>
 
-      {/* 2. Pastel Category Cards Grid (Scandinavian Look from 3rd Mockup) */}
+      {/* 2. Wallets & Payment Methods Breakdown (UPI, Cash, Bank) */}
+      <div className={`p-4 rounded-3xl border transition-colors ${
+        isLight ? 'bg-white border-slate-200/90 shadow-xs' : 'glass-card border-slate-800 text-white'
+      }`}>
+        <div className="flex items-center justify-between mb-3 px-1">
+          <div className="flex items-center space-x-1.5">
+            <Smartphone className="w-4 h-4 text-emerald-600" />
+            <h3 className={`text-xs font-bold uppercase tracking-wider ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+              Wallets & Methods
+            </h3>
+          </div>
+          <div className={`flex items-center p-0.5 rounded-xl border text-[10px] font-bold ${
+            isLight ? 'bg-slate-100 border-slate-200 text-slate-600' : 'bg-slate-900 border-slate-800 text-slate-400'
+          }`}>
+            <button
+              onClick={() => setWalletViewMode('balance')}
+              className={`px-2 py-0.5 rounded-lg transition ${
+                walletViewMode === 'balance'
+                  ? (isLight ? 'bg-white text-slate-900 shadow-xs' : 'bg-slate-800 text-white')
+                  : ''
+              }`}
+            >
+              Balances
+            </button>
+            <button
+              onClick={() => setWalletViewMode('income')}
+              className={`px-2 py-0.5 rounded-lg transition ${
+                walletViewMode === 'income'
+                  ? (isLight ? 'bg-white text-slate-900 shadow-xs' : 'bg-slate-800 text-white')
+                  : ''
+              }`}
+            >
+              Income View
+            </button>
+          </div>
+        </div>
+
+        {/* 3 Wallet Cards */}
+        <div className="grid grid-cols-3 gap-2">
+          {methodStats.map(m => {
+            const IconComponent = m.icon;
+            return (
+              <div
+                key={m.id}
+                className={`p-3 rounded-2xl border text-center transition ${
+                  isLight
+                    ? 'bg-slate-50/80 border-slate-200/90 shadow-2xs hover:bg-slate-50'
+                    : 'bg-slate-900/70 border-slate-800'
+                }`}
+              >
+                <div 
+                  className="w-8 h-8 mx-auto rounded-xl flex items-center justify-center mb-1.5"
+                  style={{ backgroundColor: `${m.color}20` }}
+                >
+                  <IconComponent className="w-4 h-4" style={{ color: m.color }} />
+                </div>
+                <span className={`text-[10px] font-bold truncate block ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                  {m.label}
+                </span>
+
+                {walletViewMode === 'balance' ? (
+                  <>
+                    <span className={`text-xs font-extrabold truncate block mt-0.5 ${
+                      m.balance >= 0 ? (isLight ? 'text-slate-900' : 'text-emerald-400') : 'text-rose-500'
+                    }`}>
+                      {formatAmount(m.balance, currency)}
+                    </span>
+                    <span className="text-[9px] text-slate-400 block mt-0.5">
+                      Spent: {formatAmount(m.monthExpense, currency)}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className={`text-xs font-extrabold truncate block mt-0.5 text-emerald-700`}>
+                      +{formatAmount(m.monthIncome, currency)}
+                    </span>
+                    <span className="text-[9px] text-slate-400 block mt-0.5">
+                      Lifetime: +{formatAmount(m.income, currency)}
+                    </span>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 3. Dedicated Savings Pot Card (🌱 Seed Stash) */}
+      <div 
+        onClick={() => onNavigateTab('savings')}
+        className={`p-4 rounded-3xl border transition cursor-pointer active-press ${
+          isLight
+            ? 'bg-gradient-to-br from-[#f0fdf4] via-[#ffffff] to-[#fefce8] border-emerald-200/90 shadow-xs hover:border-emerald-300'
+            : 'glass-card border-slate-800 hover:border-slate-700 text-white'
+        }`}
+      >
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center space-x-2.5">
+            <div className={`w-9 h-9 rounded-2xl flex items-center justify-center ${
+              isLight ? 'bg-emerald-100 text-emerald-800' : 'bg-emerald-500/20 text-emerald-400'
+            }`}>
+              <PiggyBank className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-1.5">
+                <h3 className={`text-xs font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  Savings Vault 🌱
+                </h3>
+                <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  Active
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-500">
+                {lifetimeSavings > 0 ? `Saved ${formatAmount(lifetimeSavings, currency)} across all goals` : 'Start your first savings pot today'}
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenAddModal({ type: 'saving' });
+            }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1 active-press transition ${
+              isLight
+                ? 'bg-emerald-700 text-white hover:bg-emerald-800 shadow-xs'
+                : 'bg-emerald-500 text-slate-950 font-extrabold'
+            }`}
+          >
+            <Plus className="w-3.5 h-3.5 stroke-[3]" />
+            <span>+ Save</span>
+          </button>
+        </div>
+
+        {topSavingsGoal && (
+          <div className="mt-3 pt-2.5 border-t border-emerald-900/10 space-y-1">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="font-bold text-slate-700">{topSavingsGoal.name}</span>
+              <span className="font-semibold text-emerald-700">
+                {formatAmount(topSavingsGoal.saved, currency)} / {formatAmount(topSavingsGoal.target, currency)} ({topSavingsGoal.pct}%)
+              </span>
+            </div>
+            <div className={`w-full rounded-full h-1.5 overflow-hidden ${isLight ? 'bg-slate-200/70' : 'bg-slate-800'}`}>
+              <div
+                className="h-full rounded-full bg-emerald-600 transition-all duration-500"
+                style={{ width: `${topSavingsGoal.pct}%` }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 4. Expense Breakdown by Payment Method (UPI, Cash, Cards) */}
+      {totalExpense > 0 && (
+        <div className={`p-4 rounded-3xl border transition-colors ${
+          isLight ? 'bg-white border-slate-200/90 shadow-xs' : 'glass-card border-slate-800 text-white'
+        }`}>
+          <div className="flex items-center justify-between mb-2 px-1">
+            <div className="flex items-center space-x-1.5">
+              <PieChart className="w-4 h-4 text-slate-600" />
+              <h3 className={`text-xs font-bold uppercase tracking-wider ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                Expense By Payment Method
+              </h3>
+            </div>
+            <span className="text-[10px] text-slate-400 font-medium">This Month</span>
+          </div>
+
+          <div className="space-y-2 mt-2">
+            {expenseBreakdown.map(item => (
+              <div key={item.id} className="space-y-1">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="font-bold text-slate-700 flex items-center space-x-1.5">
+                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                    <span>{item.label}</span>
+                  </span>
+                  <span className="font-semibold text-slate-600">
+                    <strong>{formatAmount(item.spent, currency)}</strong> ({item.percent}%)
+                  </span>
+                </div>
+                <div className={`w-full rounded-full h-1.5 overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-slate-900'}`}>
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{ width: `${item.percent}%`, backgroundColor: item.color }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 5. Pastel Category Cards Grid (Scandinavian Look from 3rd Mockup) */}
       <div className="space-y-2">
         <div className="flex items-center justify-between px-1">
           <span className={`text-xs font-bold uppercase tracking-wider ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
@@ -290,7 +533,7 @@ export default function DashboardView({
         </div>
       </div>
 
-      {/* 3. Monthly Budget Bar */}
+      {/* 6. Monthly Budget Bar */}
       <div 
         onClick={() => onNavigateTab('more')} 
         className={`rounded-2xl p-4 border transition cursor-pointer active-press ${
@@ -331,7 +574,7 @@ export default function DashboardView({
                 ? 'bg-rose-500' 
                 : budgetRatio > 0.75 
                 ? 'bg-amber-400' 
-                : getAccentBgColor()
+                : 'bg-emerald-700'
             }`}
             style={{ width: `${budgetPercent}%` }}
           />
@@ -346,7 +589,7 @@ export default function DashboardView({
         </div>
       </div>
 
-      {/* 4. Recent Transactions List (Crisp Scandinavian Clean Cards) */}
+      {/* 7. Recent Transactions List (Crisp Scandinavian Clean Cards) */}
       <div className="space-y-2">
         <div className="flex items-center justify-between px-1">
           <h3 className={`text-xs font-bold uppercase tracking-wider ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
@@ -368,18 +611,34 @@ export default function DashboardView({
               onClick={onOpenAddModal}
               className={`mt-2 text-xs font-bold ${getAccentTextColor()} underline`}
             >
-              Log your first expense
+              Log your first expense or saving
             </button>
           </div>
         ) : (
           <div className="space-y-2">
             {recentTransactions.map((tx) => {
-              const cat = DEFAULT_CATEGORIES.find(c => c.id === tx.categoryId) || {
-                name: tx.categoryId,
-                icon: 'MoreHorizontal',
-                color: '#94a3b8'
-              };
+              const isSaving = tx.type === 'saving';
               const isExpense = tx.type === 'expense';
+
+              let displayName = tx.categoryId;
+              let displayIcon = 'MoreHorizontal';
+              let displayColor = '#94a3b8';
+
+              if (isSaving) {
+                const matchedGoal = savingsGoals.find(g => g.id === tx.goalId || g.id === tx.categoryId);
+                displayName = matchedGoal ? `Savings: ${matchedGoal.name}` : 'Savings Vault';
+                displayIcon = 'PiggyBank';
+                displayColor = '#10b981';
+              } else {
+                const cat = DEFAULT_CATEGORIES.find(c => c.id === tx.categoryId) || {
+                  name: tx.categoryId,
+                  icon: 'MoreHorizontal',
+                  color: '#94a3b8'
+                };
+                displayName = cat.name;
+                displayIcon = cat.icon;
+                displayColor = cat.color;
+              }
 
               return (
                 <div
@@ -395,21 +654,27 @@ export default function DashboardView({
                       className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
                         isLight ? 'bg-slate-100' : ''
                       }`}
-                      style={{ backgroundColor: isLight ? `${cat.color}15` : `${cat.color}25` }}
+                      style={{ backgroundColor: isLight ? `${displayColor}15` : `${displayColor}25` }}
                     >
-                      <CategoryIcon name={cat.icon} className="w-5 h-5" color={cat.color} />
+                      {isSaving ? (
+                        <PiggyBank className="w-5 h-5 text-emerald-600" />
+                      ) : (
+                        <CategoryIcon name={displayIcon} className="w-5 h-5" color={displayColor} />
+                      )}
                     </div>
                     <div className="min-w-0 pr-2">
                       <div className="flex items-center space-x-1.5">
                         <span className={`text-xs font-bold truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                          {cat.name}
+                          {displayName}
                         </span>
                         <span className={`text-[9px] px-1.5 py-0.2 rounded font-medium border ${
-                          isLight 
-                            ? 'bg-slate-50 text-slate-600 border-slate-200' 
-                            : 'bg-slate-800 text-slate-400 border-slate-700'
+                          isSaving
+                            ? (isLight ? 'bg-amber-50 text-amber-900 border-amber-200' : 'bg-amber-500/10 text-amber-300 border-amber-500/30')
+                            : (isLight 
+                                ? 'bg-slate-50 text-slate-600 border-slate-200' 
+                                : 'bg-slate-800 text-slate-400 border-slate-700')
                         }`}>
-                          {tx.paymentMethod || 'UPI'}
+                          {isSaving ? `Saved from ${tx.paymentMethod || 'UPI'}` : (tx.paymentMethod || 'UPI')}
                         </span>
                       </div>
                       <p className={`text-[11px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
@@ -421,11 +686,13 @@ export default function DashboardView({
                   <div className="flex items-center space-x-2 shrink-0 pl-2">
                     <div className="text-right">
                       <div className={`text-xs font-extrabold ${
-                        isExpense 
+                        isSaving
+                          ? 'text-emerald-700'
+                          : isExpense 
                           ? (isLight ? 'text-slate-900' : 'text-rose-400') 
                           : (isLight ? 'text-emerald-700' : 'text-emerald-400')
                       }`}>
-                        {isExpense ? '-' : '+'}{formatAmount(tx.amount, currency)}
+                        {isSaving ? '🌱 +' : isExpense ? '-' : '+'}{formatAmount(tx.amount, currency)}
                       </div>
                       <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-slate-400'}`}>
                         {tx.time || tx.date.slice(5)}
@@ -438,7 +705,7 @@ export default function DashboardView({
                         onSelectTransaction(tx);
                       }}
                       title="Edit Record"
-                      aria-label={`Edit ${cat.name} record`}
+                      aria-label={`Edit ${displayName} record`}
                       className={`p-1.5 rounded-lg transition active-press ${
                         isLight 
                           ? 'hover:bg-slate-100 text-slate-400 hover:text-slate-700' 

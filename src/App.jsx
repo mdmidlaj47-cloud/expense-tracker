@@ -13,18 +13,63 @@ import {
   saveStoredBudgets,
   getStoredRecurring, 
   saveStoredRecurring,
+  getStoredSavingsGoals,
+  saveStoredSavingsGoals,
   getStoredSettings, 
   saveStoredSettings,
   loadStarterSampleData
 } from './utils/storage';
 
+// URL Hash routing helper so page refresh and bookmarks preserve the exact view
+const parseHash = () => {
+  const hash = (window.location.hash || '').toLowerCase();
+  if (hash === '#records' || hash === '#transactions') {
+    return { tab: 'transactions', subTab: 'budgets' };
+  }
+  if (hash === '#insights' || hash === '#analytics') {
+    return { tab: 'analytics', subTab: 'budgets' };
+  }
+  if (hash === '#savings') {
+    return { tab: 'more', subTab: 'savings' };
+  }
+  if (hash === '#budgets') {
+    return { tab: 'more', subTab: 'budgets' };
+  }
+  if (hash === '#bills' || hash === '#recurring') {
+    return { tab: 'more', subTab: 'recurring' };
+  }
+  if (hash === '#settings') {
+    return { tab: 'more', subTab: 'settings' };
+  }
+  if (hash === '#manage' || hash === '#more') {
+    return { tab: 'more', subTab: 'budgets' };
+  }
+  return { tab: 'dashboard', subTab: 'budgets' };
+};
+
+const getHashForNav = (tab, subTab) => {
+  if (tab === 'dashboard') return '#dashboard';
+  if (tab === 'transactions') return '#records';
+  if (tab === 'analytics') return '#insights';
+  if (tab === 'more') {
+    if (subTab === 'savings') return '#savings';
+    if (subTab === 'recurring') return '#bills';
+    if (subTab === 'settings') return '#settings';
+    return '#budgets';
+  }
+  return '#dashboard';
+};
+
 export default function App() {
+  const initialNav = parseHash();
+  const [activeTab, setActiveTab] = useState(initialNav.tab);
+  const [manageSubTab, setManageSubTab] = useState(initialNav.subTab);
+
   const [transactions, setTransactions] = useState([]);
   const [budgets, setBudgets] = useState({});
   const [recurring, setRecurring] = useState([]);
+  const [savingsGoals, setSavingsGoals] = useState([]);
   const [settings, setSettings] = useState({ currency: '₹', currencyCode: 'INR' });
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [manageSubTab, setManageSubTab] = useState('budgets');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
@@ -58,15 +103,17 @@ export default function App() {
     setTransactions(getStoredTransactions());
     setBudgets(getStoredBudgets());
     setRecurring(getStoredRecurring());
+    setSavingsGoals(getStoredSavingsGoals());
     setSettings(getStoredSettings());
   }, []);
 
-  // History & Mobile Back Button Navigation System
+  // History & Mobile Back Button Navigation System with Hash Sync
   useEffect(() => {
-    // Replace initial state with root state
-    window.history.replaceState({ app: 'rupya', tab: 'dashboard', subTab: 'budgets', modal: false }, '');
+    const nav = parseHash();
+    const currentHash = getHashForNav(nav.tab, nav.subTab);
+    window.history.replaceState({ app: 'rupya', tab: nav.tab, subTab: nav.subTab, modal: false }, '', currentHash);
 
-    const handlePopState = (event) => {
+    const handleNavigationEvent = (event) => {
       // 1. If transaction modal is open, close it and stay on current page
       if (isAddModalOpenRef.current) {
         setIsAddModalOpen(false);
@@ -74,55 +121,83 @@ export default function App() {
         return;
       }
 
-      // 2. If inside Manage and in a sub-tab (bills or settings), go back to budgets sub-tab
+      // 2. Read new hash
+      const parsed = parseHash();
+
+      // If hash matches another tab, switch smoothly
+      if (parsed.tab !== activeTabRef.current || parsed.subTab !== manageSubTabRef.current) {
+        setActiveTab(parsed.tab);
+        setManageSubTab(parsed.subTab);
+        return;
+      }
+
+      // 3. If inside Manage and in a sub-tab, go back to budgets sub-tab
       if (activeTabRef.current === 'more' && manageSubTabRef.current !== 'budgets') {
         setManageSubTab('budgets');
+        window.history.replaceState({ app: 'rupya', tab: 'more', subTab: 'budgets', modal: false }, '', '#budgets');
         return;
       }
 
-      // 3. If on another main tab (records, insights, manage), go back to dashboard
+      // 4. If on another main tab (records, insights, manage), go back to dashboard
       if (activeTabRef.current !== 'dashboard') {
-        const target = event.state?.tab || 'dashboard';
-        setActiveTab(target);
-        if (event.state?.subTab) setManageSubTab(event.state.subTab);
+        setActiveTab('dashboard');
+        window.history.replaceState({ app: 'rupya', tab: 'dashboard', subTab: 'budgets', modal: false }, '', '#dashboard');
         return;
       }
 
-      // 4. We are on dashboard with no modals: prevent accidental app exit on mobile
+      // 5. We are on dashboard with no modals: prevent accidental app exit on mobile
       const now = Date.now();
       if (now - lastBackPressTimeRef.current > 2000) {
         lastBackPressTimeRef.current = now;
-        // Re-push root state so user must press back twice quickly to exit
-        window.history.pushState({ app: 'rupya', tab: 'dashboard', subTab: 'budgets', modal: false }, '');
+        window.history.pushState({ app: 'rupya', tab: 'dashboard', subTab: 'budgets', modal: false }, '', '#dashboard');
         setToastMessage('Press back again to exit');
         setTimeout(() => setToastMessage(null), 2000);
       }
     };
 
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+    window.addEventListener('popstate', handleNavigationEvent);
+    window.addEventListener('hashchange', handleNavigationEvent);
+    return () => {
+      window.removeEventListener('popstate', handleNavigationEvent);
+      window.removeEventListener('hashchange', handleNavigationEvent);
+    };
   }, []);
 
-  // Navigation handlers that maintain history stack
-  const handleTabChange = (newTab) => {
-    if (newTab === activeTab) return;
+  // Navigation handlers that maintain history stack & URL hash
+  const handleTabChange = (newTab, optionalSubTab = null) => {
+    if (newTab === 'savings') {
+      newTab = 'more';
+      optionalSubTab = 'savings';
+    }
+
+    const targetSubTab = optionalSubTab || (newTab === 'more' ? (manageSubTab || 'budgets') : manageSubTab);
+
+    if (newTab === activeTab && targetSubTab === manageSubTab) return;
+
     setActiveTab(newTab);
-    if (newTab === 'more' && manageSubTab !== 'budgets' && manageSubTab !== 'recurring' && manageSubTab !== 'settings') {
+    if (optionalSubTab) {
+      setManageSubTab(optionalSubTab);
+    } else if (newTab === 'more' && manageSubTab !== 'budgets' && manageSubTab !== 'savings' && manageSubTab !== 'recurring' && manageSubTab !== 'settings') {
       setManageSubTab('budgets');
     }
-    window.history.pushState({ app: 'rupya', tab: newTab, subTab: manageSubTab, modal: false }, '');
+
+    const newHash = getHashForNav(newTab, targetSubTab);
+    window.history.pushState({ app: 'rupya', tab: newTab, subTab: targetSubTab, modal: false }, '', newHash);
   };
 
   const handleSubTabChange = (newSubTab) => {
-    if (newSubTab === manageSubTab) return;
+    if (newSubTab === manageSubTab && activeTab === 'more') return;
+    setActiveTab('more');
     setManageSubTab(newSubTab);
-    window.history.pushState({ app: 'rupya', tab: 'more', subTab: newSubTab, modal: false }, '');
+    const newHash = getHashForNav('more', newSubTab);
+    window.history.pushState({ app: 'rupya', tab: 'more', subTab: newSubTab, modal: false }, '', newHash);
   };
 
   const handleOpenAddModal = (tx = null) => {
     setEditingTransaction(tx);
     setIsAddModalOpen(true);
-    window.history.pushState({ app: 'rupya', tab: activeTab, subTab: manageSubTab, modal: true }, '');
+    const currentHash = getHashForNav(activeTab, manageSubTab);
+    window.history.pushState({ app: 'rupya', tab: activeTab, subTab: manageSubTab, modal: true }, '', currentHash);
   };
 
   const handleCloseAddModal = () => {
@@ -172,10 +247,15 @@ export default function App() {
     handleOpenAddModal(tx);
   };
 
-  // Budgets & Recurring handlers
+  // Budgets, Savings Goals & Recurring handlers
   const handleSaveBudgets = (newBudgets) => {
     setBudgets(newBudgets);
     saveStoredBudgets(newBudgets);
+  };
+
+  const handleSaveSavingsGoals = (newGoals) => {
+    setSavingsGoals(newGoals);
+    saveStoredSavingsGoals(newGoals);
   };
 
   const handleSaveRecurring = (newRecurring) => {
@@ -194,6 +274,7 @@ export default function App() {
     setTransactions(data.transactions);
     setBudgets(getStoredBudgets());
     setRecurring(getStoredRecurring());
+    setSavingsGoals(getStoredSavingsGoals());
   };
 
   const handleClearData = () => {
@@ -236,7 +317,7 @@ export default function App() {
 
   return (
     <div className={`min-h-screen ${getThemeBg()} flex justify-center font-sans antialiased selection:bg-emerald-200 selection:text-emerald-900 transition-colors duration-300 theme-${currentTheme}`}>
-      {/* Mobile container - looks native on Android screen and cleanly framed on desktop */}
+      {/* Mobile container - looks native on Android/iPhone screen and cleanly framed on desktop */}
       <div className={`w-full max-w-md ${getThemeBg()} min-h-screen flex flex-col relative shadow-2xl transition-colors duration-300 ${
         currentTheme === 'light' ? 'border-x border-slate-200/90 shadow-slate-900/8' : 'border-x border-slate-800/40'
       }`}>
@@ -250,8 +331,7 @@ export default function App() {
           pendingRecurringCount={pendingRecurringCount}
           theme={currentTheme}
           onOpenRecurring={() => {
-            handleTabChange('more');
-            handleSubTabChange('recurring');
+            handleTabChange('more', 'recurring');
           }}
         />
 
@@ -261,11 +341,12 @@ export default function App() {
             <DashboardView
               transactions={transactions}
               budgets={budgets}
+              savingsGoals={savingsGoals}
               currency={settings.currency || '₹'}
               currentMonth={currentMonth}
               theme={currentTheme}
               layout={settings.layout || 'classic'}
-              onOpenAddModal={() => handleOpenAddModal(null)}
+              onOpenAddModal={handleOpenAddModal}
               onSelectTransaction={handleEditClick}
               onViewAllTransactions={() => handleTabChange('transactions')}
               onNavigateTab={handleTabChange}
@@ -275,11 +356,12 @@ export default function App() {
           {activeTab === 'transactions' && (
             <TransactionsView
               transactions={transactions}
+              savingsGoals={savingsGoals}
               currency={settings.currency || '₹'}
               theme={currentTheme}
               onSelectTransaction={handleEditClick}
               onDeleteTransaction={handleDeleteTransaction}
-              onOpenAddModal={() => handleOpenAddModal(null)}
+              onOpenAddModal={handleOpenAddModal}
             />
           )}
 
@@ -298,6 +380,8 @@ export default function App() {
               onSubTabChange={handleSubTabChange}
               budgets={budgets}
               onSaveBudgets={handleSaveBudgets}
+              savingsGoals={savingsGoals}
+              onSaveSavingsGoals={handleSaveSavingsGoals}
               recurring={recurring}
               onSaveRecurring={handleSaveRecurring}
               onLogTransaction={handleSaveTransaction}
@@ -309,6 +393,9 @@ export default function App() {
               theme={currentTheme}
               onResetData={handleResetData}
               onClearData={handleClearData}
+              onOpenAddModal={handleOpenAddModal}
+              onSelectTransaction={handleEditClick}
+              onDeleteTransaction={handleDeleteTransaction}
             />
           )}
         </main>
@@ -327,6 +414,7 @@ export default function App() {
           onClose={handleCloseAddModal}
           onSave={handleSaveTransaction}
           initialData={editingTransaction}
+          savingsGoals={savingsGoals}
           currency={settings.currency || '₹'}
           theme={currentTheme}
         />

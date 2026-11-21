@@ -9,13 +9,15 @@ import {
   Calendar,
   X,
   Plus,
-  Edit2
+  Edit2,
+  PiggyBank
 } from 'lucide-react';
-import { DEFAULT_CATEGORIES, PAYMENT_METHODS, formatAmount, exportTransactionsToCSV } from '../utils/storage';
+import { DEFAULT_CATEGORIES, PAYMENT_METHODS, formatAmount, exportTransactionsToCSV, DEFAULT_SAVINGS_GOALS } from '../utils/storage';
 import CategoryIcon from './CategoryIcon';
 
 export default function TransactionsView({ 
   transactions, 
+  savingsGoals = DEFAULT_SAVINGS_GOALS,
   currency = '₹', 
   theme = 'light',
   onSelectTransaction, 
@@ -24,7 +26,7 @@ export default function TransactionsView({
 }) {
   const isLight = theme === 'light';
   const [searchQuery, setSearchQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState('all'); // all | expense | income
+  const [typeFilter, setTypeFilter] = useState('all'); // all | expense | income | saving
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [paymentFilter, setPaymentFilter] = useState('all');
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
@@ -34,15 +36,27 @@ export default function TransactionsView({
     return transactions.filter(tx => {
       // Type
       if (typeFilter !== 'all' && tx.type !== typeFilter) return false;
-      // Category
-      if (categoryFilter !== 'all' && tx.categoryId !== categoryFilter) return false;
+      // Category / Goal
+      if (categoryFilter !== 'all') {
+        if (tx.type === 'saving') {
+          if (tx.goalId !== categoryFilter && tx.categoryId !== categoryFilter) return false;
+        } else {
+          if (tx.categoryId !== categoryFilter) return false;
+        }
+      }
       // Payment Method
       if (paymentFilter !== 'all' && tx.paymentMethod !== paymentFilter) return false;
       // Search note or category name or amount
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const cat = DEFAULT_CATEGORIES.find(c => c.id === tx.categoryId);
-        const catName = (cat?.name || '').toLowerCase();
+        let catName = '';
+        if (tx.type === 'saving') {
+          const g = savingsGoals.find(goal => goal.id === tx.goalId || goal.id === tx.categoryId);
+          catName = (g?.name || 'Savings').toLowerCase();
+        } else {
+          const cat = DEFAULT_CATEGORIES.find(c => c.id === tx.categoryId);
+          catName = (cat?.name || '').toLowerCase();
+        }
         const note = (tx.note || '').toLowerCase();
         const amountStr = String(tx.amount);
         const match = catName.includes(q) || note.includes(q) || amountStr.includes(q) || (tx.paymentMethod || '').toLowerCase().includes(q);
@@ -50,7 +64,7 @@ export default function TransactionsView({
       }
       return true;
     }).sort((a, b) => new Date(`${b.date}T${b.time || '00:00'}`) - new Date(`${a.date}T${a.time || '00:00'}`));
-  }, [transactions, typeFilter, categoryFilter, paymentFilter, searchQuery]);
+  }, [transactions, typeFilter, categoryFilter, paymentFilter, searchQuery, savingsGoals]);
 
   // Group by Date (YYYY-MM-DD)
   const groupedByDate = useMemo(() => {
@@ -69,6 +83,10 @@ export default function TransactionsView({
 
   const totalFilteredExpense = filtered
     .filter(t => t.type === 'expense')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const totalFilteredSavings = filtered
+    .filter(t => t.type === 'saving')
     .reduce((sum, t) => sum + t.amount, 0);
 
   // Friendly date title
@@ -114,7 +132,7 @@ export default function TransactionsView({
         {/* Filter Pills */}
         <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar py-1">
           {/* Type filters */}
-          {['all', 'expense', 'income'].map((tf) => (
+          {['all', 'expense', 'income', 'saving'].map((tf) => (
             <button
               key={tf}
               onClick={() => setTypeFilter(tf)}
@@ -124,7 +142,7 @@ export default function TransactionsView({
                   : (isLight ? 'bg-white border border-slate-200 text-slate-600 hover:text-slate-900' : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200')
               }`}
             >
-              {tf === 'all' ? 'All' : tf === 'expense' ? 'Expenses' : 'Income'}
+              {tf === 'all' ? 'All' : tf === 'expense' ? 'Expenses' : tf === 'income' ? 'Income' : 'Savings 🌱'}
             </button>
           ))}
 
@@ -154,10 +172,22 @@ export default function TransactionsView({
                 : 'bg-slate-900 border-slate-800 text-slate-300 focus:border-emerald-500'
             }`}
           >
-            <option value="all">Category: All</option>
-            {DEFAULT_CATEGORIES.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
+            <option value="all">Category / Goal: All</option>
+            <optgroup label="Expense Categories">
+              {DEFAULT_CATEGORIES.filter(c => c.type === 'expense').map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </optgroup>
+            <optgroup label="Income Categories">
+              {DEFAULT_CATEGORIES.filter(c => c.type === 'income').map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </optgroup>
+            <optgroup label="Savings Goals">
+              {savingsGoals.map(g => (
+                <option key={g.id} value={g.id}>🌱 {g.name}</option>
+              ))}
+            </optgroup>
           </select>
         </div>
       </div>
@@ -175,6 +205,9 @@ export default function TransactionsView({
           )}
           {totalFilteredIncome > 0 && (
             <span className={`${isLight ? 'text-emerald-700' : 'text-emerald-400'} font-bold`}>+{formatAmount(totalFilteredIncome, currency)}</span>
+          )}
+          {totalFilteredSavings > 0 && (
+            <span className="text-amber-600 font-bold">🌱 {formatAmount(totalFilteredSavings, currency)}</span>
           )}
           <button
             onClick={() => exportTransactionsToCSV(filtered)}
@@ -224,13 +257,29 @@ export default function TransactionsView({
                 {/* Items */}
                 <div className="space-y-1.5">
                   {items.map((tx) => {
-                    const cat = DEFAULT_CATEGORIES.find(c => c.id === tx.categoryId) || {
-                      name: tx.categoryId,
-                      icon: 'MoreHorizontal',
-                      color: '#94a3b8'
-                    };
+                    const isSaving = tx.type === 'saving';
                     const isExpense = tx.type === 'expense';
                     const isConfirmingDelete = deleteConfirmId === tx.id;
+
+                    let displayName = tx.categoryId;
+                    let displayIcon = 'MoreHorizontal';
+                    let displayColor = '#94a3b8';
+
+                    if (isSaving) {
+                      const matchedGoal = savingsGoals.find(g => g.id === tx.goalId || g.id === tx.categoryId);
+                      displayName = matchedGoal ? `Savings: ${matchedGoal.name}` : 'Savings Vault';
+                      displayIcon = 'PiggyBank';
+                      displayColor = '#10b981';
+                    } else {
+                      const cat = DEFAULT_CATEGORIES.find(c => c.id === tx.categoryId) || {
+                        name: tx.categoryId,
+                        icon: 'MoreHorizontal',
+                        color: '#94a3b8'
+                      };
+                      displayName = cat.name;
+                      displayIcon = cat.icon;
+                      displayColor = cat.color;
+                    }
 
                     return (
                       <div
@@ -245,21 +294,27 @@ export default function TransactionsView({
                         <div className="flex items-center space-x-3 min-w-0 flex-1">
                           <div 
                             className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                            style={{ backgroundColor: isLight ? `${cat.color}18` : `${cat.color}25` }}
+                            style={{ backgroundColor: isLight ? `${displayColor}18` : `${displayColor}25` }}
                           >
-                            <CategoryIcon name={cat.icon} className="w-5 h-5" color={cat.color} />
+                            {isSaving ? (
+                              <PiggyBank className="w-5 h-5 text-emerald-600" />
+                            ) : (
+                              <CategoryIcon name={displayIcon} className="w-5 h-5" color={displayColor} />
+                            )}
                           </div>
                           <div className="min-w-0 pr-2">
                             <div className="flex items-center space-x-1.5">
                               <span className={`text-xs font-bold truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                                {cat.name}
+                                {displayName}
                               </span>
                               <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium border ${
-                                isLight 
-                                  ? 'bg-slate-100 text-slate-600 border-slate-200' 
-                                  : 'bg-slate-800 text-slate-400 border-slate-700'
+                                isSaving
+                                  ? (isLight ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30')
+                                  : (isLight 
+                                      ? 'bg-slate-100 text-slate-600 border-slate-200' 
+                                      : 'bg-slate-800 text-slate-400 border-slate-700')
                               }`}>
-                                {tx.paymentMethod || 'UPI'}
+                                {isSaving ? `Saved from ${tx.paymentMethod || 'UPI'}` : (tx.paymentMethod || 'UPI')}
                               </span>
                             </div>
                             <p className={`text-[11px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
@@ -272,11 +327,13 @@ export default function TransactionsView({
                         <div className="flex items-center space-x-2 shrink-0">
                           <div className="text-right">
                             <div className={`text-xs font-extrabold ${
-                              isExpense 
+                              isSaving
+                                ? (isLight ? 'text-emerald-700' : 'text-emerald-400')
+                                : isExpense 
                                 ? (isLight ? 'text-slate-900' : 'text-rose-400') 
                                 : (isLight ? 'text-emerald-700' : 'text-emerald-400')
                             }`}>
-                              {isExpense ? '-' : '+'}{formatAmount(tx.amount, currency)}
+                              {isSaving ? '🌱 +' : isExpense ? '-' : '+'}{formatAmount(tx.amount, currency)}
                             </div>
                             <span className="text-[10px] text-slate-400">
                               {tx.time || ''}
@@ -290,7 +347,7 @@ export default function TransactionsView({
                               onSelectTransaction(tx);
                             }}
                             title="Edit Record"
-                            aria-label={`Edit ${cat.name} record`}
+                            aria-label={`Edit ${displayName} record`}
                             className={`p-1.5 rounded-lg transition active-press ${
                               isLight
                                 ? 'hover:bg-slate-100 text-slate-400 hover:text-slate-700'
@@ -300,48 +357,30 @@ export default function TransactionsView({
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
 
-                          {/* Quick Delete */}
-                          {isConfirmingDelete ? (
-                            <div className="flex items-center space-x-1 pl-0.5">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onDeleteTransaction(tx.id);
-                                  setDeleteConfirmId(null);
-                                }}
-                                className="p-1.5 bg-rose-600 text-white rounded-lg text-[10px] font-bold active-press"
-                              >
-                                Delete
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setDeleteConfirmId(null);
-                                }}
-                                className={`p-1.5 rounded-lg text-[10px] ${
-                                  isLight ? 'bg-slate-200 text-slate-700' : 'bg-slate-800 text-slate-300'
-                                }`}
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
+                          {/* Delete Button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (isConfirmingDelete) {
+                                onDeleteTransaction(tx.id);
+                                setDeleteConfirmId(null);
+                              } else {
                                 setDeleteConfirmId(tx.id);
-                              }}
-                              title="Delete Record"
-                              aria-label={`Delete ${cat.name} record`}
-                              className={`p-1.5 rounded-lg transition active-press ${
-                                isLight
-                                  ? 'hover:bg-rose-50 text-slate-400 hover:text-rose-600'
-                                  : 'hover:bg-rose-500/15 text-slate-500 hover:text-rose-400'
-                              }`}
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
+                                setTimeout(() => setDeleteConfirmId(null), 3500);
+                              }
+                            }}
+                            title={isConfirmingDelete ? 'Click again to confirm delete' : 'Delete Record'}
+                            aria-label={`Delete ${displayName} record`}
+                            className={`p-1.5 rounded-lg transition active-press ${
+                              isConfirmingDelete
+                                ? 'bg-rose-500 text-white'
+                                : isLight
+                                ? 'hover:bg-slate-100 text-slate-400 hover:text-rose-500'
+                                : 'hover:bg-slate-800 text-slate-500 hover:text-rose-400'
+                            }`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </div>
                     );

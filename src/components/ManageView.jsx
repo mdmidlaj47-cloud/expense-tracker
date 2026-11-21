@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Target, Bell, Settings as SettingsIcon, Download } from 'lucide-react';
+import { Target, Bell, Settings as SettingsIcon, Download, PiggyBank } from 'lucide-react';
 import BudgetView from './BudgetView';
+import SavingsView from './SavingsView';
 import RecurringView from './RecurringView';
 import SettingsView from './SettingsView';
 
@@ -9,6 +10,8 @@ export default function ManageView({
   onSubTabChange,
   budgets,
   onSaveBudgets,
+  savingsGoals = [],
+  onSaveSavingsGoals,
   recurring,
   onSaveRecurring,
   onLogTransaction,
@@ -19,14 +22,18 @@ export default function ManageView({
   currency,
   theme = 'light',
   onResetData,
-  onClearData
+  onClearData,
+  onOpenAddModal,
+  onSelectTransaction,
+  onDeleteTransaction
 }) {
   const isLight = theme === 'light';
 
   const tabs = [
     { id: 'budgets', label: 'Budgets', icon: Target },
-    { id: 'recurring', label: 'Bills & Subscriptions', icon: Bell },
-    { id: 'settings', label: 'Settings & Data', icon: SettingsIcon }
+    { id: 'savings', label: 'Savings 🌱', icon: PiggyBank },
+    { id: 'recurring', label: 'Bills', icon: Bell },
+    { id: 'settings', label: 'Settings', icon: SettingsIcon }
   ];
 
   return (
@@ -44,7 +51,7 @@ export default function ManageView({
             <button
               key={tab.id}
               onClick={() => onSubTabChange(tab.id)}
-              className={`flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 transition active-press ${
+              className={`flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center space-x-1 transition active-press ${
                 isActive
                   ? (isLight ? 'bg-slate-900 text-white shadow-xs' : 'bg-emerald-500 text-white shadow-sm')
                   : (isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200')
@@ -66,6 +73,19 @@ export default function ManageView({
           currency={currency}
           currentMonth={currentMonth}
           theme={theme}
+        />
+      )}
+
+      {subTab === 'savings' && (
+        <SavingsView
+          savingsGoals={savingsGoals}
+          onSaveSavingsGoals={onSaveSavingsGoals}
+          transactions={transactions}
+          currency={currency}
+          theme={theme}
+          onOpenAddModal={onOpenAddModal}
+          onSelectTransaction={onSelectTransaction}
+          onDeleteTransaction={onDeleteTransaction}
         />
       )}
 

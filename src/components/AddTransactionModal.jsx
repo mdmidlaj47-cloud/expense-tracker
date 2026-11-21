@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Check, Calendar, Clock, CreditCard, Tag, Sparkles } from 'lucide-react';
+import { X, Check, Calendar, Clock, CreditCard, Tag, Sparkles, PiggyBank, Target, Shield, Smartphone, Car, Plane, Home, Coins } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { DEFAULT_CATEGORIES, PAYMENT_METHODS, formatAmount } from '../utils/storage';
+import { DEFAULT_CATEGORIES, PAYMENT_METHODS, formatAmount, DEFAULT_SAVINGS_GOALS } from '../utils/storage';
 import CategoryIcon from './CategoryIcon';
 
 export default function AddTransactionModal({ 
@@ -9,12 +9,14 @@ export default function AddTransactionModal({
   onClose, 
   onSave, 
   initialData = null, 
+  savingsGoals = DEFAULT_SAVINGS_GOALS,
   currency = '₹',
   theme = 'light'
 }) {
-  const [type, setType] = useState('expense');
+  const [type, setType] = useState('expense'); // expense | income | saving
   const [amount, setAmount] = useState('');
   const [categoryId, setCategoryId] = useState('');
+  const [goalId, setGoalId] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('UPI');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
@@ -26,20 +28,31 @@ export default function AddTransactionModal({
   // Reset or fill form when opened
   useEffect(() => {
     if (isOpen) {
+      const activeGoals = savingsGoals.length > 0 ? savingsGoals : DEFAULT_SAVINGS_GOALS;
       if (initialData) {
-        setType(initialData.type || 'expense');
+        const initType = initialData.type || 'expense';
+        setType(initType);
         setAmount(String(initialData.amount || ''));
-        setCategoryId(initialData.categoryId || '');
         setPaymentMethod(initialData.paymentMethod || 'UPI');
         setDate(initialData.date || new Date().toISOString().slice(0, 10));
         setTime(initialData.time || new Date().toTimeString().slice(0, 5));
         setNote(initialData.note || '');
+
+        if (initType === 'saving') {
+          const initGoal = initialData.goalId || initialData.categoryId || activeGoals[0]?.id || 'goal_general';
+          setGoalId(initGoal);
+          setCategoryId(initGoal);
+        } else {
+          setCategoryId(initialData.categoryId || '');
+          setGoalId(activeGoals[0]?.id || 'goal_general');
+        }
       } else {
         const now = new Date();
         setType('expense');
         setAmount('');
         const firstExp = DEFAULT_CATEGORIES.find(c => c.type === 'expense');
         setCategoryId(firstExp ? firstExp.id : 'food');
+        setGoalId(activeGoals[0]?.id || 'goal_general');
         setPaymentMethod('UPI');
         setDate(now.toISOString().slice(0, 10));
         setTime(now.toTimeString().slice(0, 5));
@@ -47,14 +60,21 @@ export default function AddTransactionModal({
       }
       setError('');
     }
-  }, [isOpen, initialData]);
+  }, [isOpen, initialData, savingsGoals]);
 
-  // When type changes, select the first category of that type if current category doesn't match
+  // When type changes, select appropriate category or goal
   const handleTypeChange = (newType) => {
     setType(newType);
-    const validCats = DEFAULT_CATEGORIES.filter(c => c.type === newType);
-    if (!validCats.some(c => c.id === categoryId)) {
-      setCategoryId(validCats[0]?.id || '');
+    const activeGoals = savingsGoals.length > 0 ? savingsGoals : DEFAULT_SAVINGS_GOALS;
+    if (newType === 'saving') {
+      if (!goalId) {
+        setGoalId(activeGoals[0]?.id || 'goal_general');
+      }
+    } else {
+      const validCats = DEFAULT_CATEGORIES.filter(c => c.type === newType);
+      if (!validCats.some(c => c.id === categoryId)) {
+        setCategoryId(validCats[0]?.id || '');
+      }
     }
   };
 
@@ -70,12 +90,40 @@ export default function AddTransactionModal({
       setError('Please enter a valid amount greater than 0');
       return;
     }
+
+    if (type === 'saving') {
+      const targetGoal = goalId || savingsGoals[0]?.id || 'goal_general';
+      // Trigger festive green confetti for saving!
+      try {
+        confetti({
+          particleCount: 65,
+          spread: 70,
+          origin: { y: 0.75 },
+          colors: ['#10b981', '#34d399', '#f59e0b', '#fbbf24']
+        });
+      } catch (err) {}
+
+      onSave({
+        id: initialData?.id || `tx_${Date.now()}`,
+        type: 'saving',
+        amount: numAmount,
+        goalId: targetGoal,
+        categoryId: targetGoal,
+        paymentMethod,
+        date,
+        time,
+        note: note.trim()
+      });
+      onClose();
+      return;
+    }
+
     if (!categoryId) {
       setError('Please select a category');
       return;
     }
 
-    // Trigger mini confetti on income or savings!
+    // Trigger mini confetti on income!
     if (type === 'income') {
       try {
         confetti({
@@ -103,6 +151,7 @@ export default function AddTransactionModal({
   if (!isOpen) return null;
 
   const filteredCategories = DEFAULT_CATEGORIES.filter(c => c.type === type);
+  const activeGoals = savingsGoals.length > 0 ? savingsGoals : DEFAULT_SAVINGS_GOALS;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
@@ -120,7 +169,7 @@ export default function AddTransactionModal({
         }`}>
           <div className="flex items-center space-x-2">
             <span className={`text-base font-extrabold ${isLight ? 'text-slate-900' : 'text-white'}`}>
-              {initialData ? 'Edit Record' : 'Log New Transaction'}
+              {initialData ? 'Edit Record' : type === 'saving' ? 'Deposit to Savings 🌱' : 'Log New Transaction'}
             </span>
           </div>
           <button 
@@ -135,8 +184,8 @@ export default function AddTransactionModal({
 
         {/* Form Body - scrollable */}
         <div className="p-5 overflow-y-auto space-y-4 no-scrollbar">
-          {/* Expense vs Income Toggle */}
-          <div className={`grid grid-cols-2 p-1 rounded-2xl border ${
+          {/* 3-Way Toggle: Expense vs Income vs Saving */}
+          <div className={`grid grid-cols-3 p-1 rounded-2xl border ${
             isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-950 border-slate-800'
           }`}>
             <button
@@ -161,6 +210,17 @@ export default function AddTransactionModal({
             >
               Income 💰
             </button>
+            <button
+              type="button"
+              onClick={() => handleTypeChange('saving')}
+              className={`py-2 text-xs font-bold rounded-xl transition-all ${
+                type === 'saving'
+                  ? 'bg-amber-600 text-white shadow-md shadow-amber-600/25'
+                  : (isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200')
+              }`}
+            >
+              Saving 🌱
+            </button>
           </div>
 
           {/* Amount input */}
@@ -170,10 +230,12 @@ export default function AddTransactionModal({
             <label className={`text-[11px] font-semibold uppercase tracking-wider block mb-1 ${
               isLight ? 'text-slate-500' : 'text-slate-400'
             }`}>
-              Enter Amount
+              {type === 'saving' ? 'How Much to Save?' : 'Enter Amount'}
             </label>
             <div className="flex items-center justify-center space-x-1">
-              <span className={`text-3xl font-extrabold ${type === 'expense' ? 'text-rose-500' : 'text-emerald-600'}`}>
+              <span className={`text-3xl font-extrabold ${
+                type === 'expense' ? 'text-rose-500' : type === 'income' ? 'text-emerald-600' : 'text-amber-600'
+              }`}>
                 {currency}
               </span>
               <input
@@ -217,48 +279,90 @@ export default function AddTransactionModal({
             </div>
           )}
 
-          {/* Category Selector Grid */}
-          <div>
-            <label className={`text-xs font-bold block mb-2 ${isLight ? 'text-slate-800' : 'text-slate-300'}`}>
-              Select Category
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {filteredCategories.map((cat) => {
-                const isSelected = categoryId === cat.id;
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => setCategoryId(cat.id)}
-                    className={`p-2.5 rounded-2xl border flex flex-col items-center justify-center text-center transition active-press ${
-                      isSelected
-                        ? (isLight 
-                            ? 'border-emerald-600 bg-emerald-50 text-slate-900 ring-2 ring-emerald-600/30' 
-                            : 'border-emerald-500 bg-emerald-500/10 text-white ring-1 ring-emerald-500/50')
-                        : (isLight 
-                            ? 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 shadow-xs' 
-                            : 'border-slate-800 bg-slate-950/60 text-slate-400 hover:border-slate-700 hover:text-slate-300')
-                    }`}
-                  >
-                    <div 
-                      className="w-9 h-9 rounded-xl flex items-center justify-center mb-1.5"
-                      style={{ backgroundColor: `${cat.color}25` }}
+          {/* If Savings: Select Savings Goal / Pot */}
+          {type === 'saving' ? (
+            <div>
+              <label className={`text-xs font-bold block mb-2 ${isLight ? 'text-slate-800' : 'text-slate-300'}`}>
+                Select Savings Goal / Pot 🌱
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {activeGoals.map((g) => {
+                  const isSelected = goalId === g.id;
+                  return (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => setGoalId(g.id)}
+                      className={`p-3 rounded-2xl border flex items-center space-x-2.5 text-left transition active-press ${
+                        isSelected
+                          ? (isLight
+                              ? 'border-emerald-600 bg-emerald-50 text-slate-900 ring-2 ring-emerald-600/30'
+                              : 'border-emerald-500 bg-emerald-500/10 text-white ring-1 ring-emerald-500/50')
+                          : (isLight
+                              ? 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 shadow-xs'
+                              : 'border-slate-800 bg-slate-950/60 text-slate-400 hover:text-slate-300')
+                      }`}
                     >
-                      <CategoryIcon name={cat.icon} className="w-5 h-5" color={cat.color} />
-                    </div>
-                    <span className="text-[11px] font-semibold truncate w-full leading-tight">
-                      {cat.name}
-                    </span>
-                  </button>
-                );
-              })}
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                        isSelected ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'
+                      }`}>
+                        <PiggyBank className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold truncate block">{g.name}</span>
+                        <span className="text-[10px] text-slate-500 truncate block">
+                          Target: {formatAmount(g.targetAmount, currency)}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          ) : (
+            /* Category Selector Grid for Expense & Income */
+            <div>
+              <label className={`text-xs font-bold block mb-2 ${isLight ? 'text-slate-800' : 'text-slate-300'}`}>
+                Select Category
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {filteredCategories.map((cat) => {
+                  const isSelected = categoryId === cat.id;
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setCategoryId(cat.id)}
+                      className={`p-2.5 rounded-2xl border flex flex-col items-center justify-center text-center transition active-press ${
+                        isSelected
+                          ? (isLight 
+                              ? 'border-emerald-600 bg-emerald-50 text-slate-900 ring-2 ring-emerald-600/30' 
+                              : 'border-emerald-500 bg-emerald-500/10 text-white ring-1 ring-emerald-500/50')
+                          : (isLight 
+                              ? 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 shadow-xs' 
+                              : 'border-slate-800 bg-slate-950/60 text-slate-400 hover:border-slate-700 hover:text-slate-300')
+                      }`}
+                    >
+                      <div 
+                        className="w-9 h-9 rounded-xl flex items-center justify-center mb-1.5"
+                        style={{ backgroundColor: `${cat.color}25` }}
+                      >
+                        <CategoryIcon name={cat.icon} className="w-5 h-5" color={cat.color} />
+                      </div>
+                      <span className="text-[11px] font-semibold truncate w-full leading-tight">
+                        {cat.name}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
-          {/* Payment Method */}
+          {/* Payment Method / Saved From */}
           <div>
             <label className={`text-xs font-bold block mb-2 ${isLight ? 'text-slate-800' : 'text-slate-300'}`}>
-              Payment Method
+              {type === 'saving' ? 'Saved From (Wallet / Source)' : 'Payment Method'}
             </label>
             <div className="grid grid-cols-2 gap-2">
               {PAYMENT_METHODS.map((pm) => {
@@ -325,11 +429,11 @@ export default function AddTransactionModal({
           {/* Note / Description */}
           <div>
             <label className={`text-[11px] font-semibold block mb-1 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-              Note / Description (Optional)
+              {type === 'saving' ? 'Savings Note (e.g. Set aside ₹500 from pocket money)' : 'Note / Description (Optional)'}
             </label>
             <input
               type="text"
-              placeholder="e.g. Starbucks coffee, Grocery at Waitrose"
+              placeholder={type === 'saving' ? 'e.g. Pocket money, bonus stash' : 'e.g. Starbucks coffee, Grocery at Blinkit'}
               value={note}
               onChange={(e) => setNote(e.target.value)}
               className={`w-full border rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-emerald-500 ${
@@ -356,13 +460,17 @@ export default function AddTransactionModal({
             type="button"
             onClick={handleSubmit}
             className={`w-2/3 py-3 rounded-xl text-white text-xs font-extrabold flex items-center justify-center space-x-1.5 active-press transition shadow-md ${
-              isLight
+              type === 'saving'
+                ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/30'
+                : isLight
                 ? 'bg-slate-900 hover:bg-black shadow-slate-900/20'
                 : 'bg-gradient-to-r from-emerald-600 to-teal-500 shadow-emerald-600/30'
             }`}
           >
             <Check className="w-4 h-4 stroke-[3]" />
-            <span>{initialData ? 'Update Record' : 'Save Record'}</span>
+            <span>
+              {initialData ? 'Update Record' : type === 'saving' ? 'Save Money 🌱' : 'Save Record'}
+            </span>
           </button>
         </div>
       </div>

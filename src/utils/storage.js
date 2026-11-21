@@ -14,6 +14,14 @@ const LEGACY_RECURRING_KEY = 'rupeetrack_recurring_v1';
 const SETTINGS_KEY = 'rupya_settings_v1';
 const LEGACY_SETTINGS_KEY = 'rupeetrack_settings_v1';
 
+const SAVINGS_GOALS_KEY = 'rupya_savings_goals_v1';
+
+export const DEFAULT_SAVINGS_GOALS = [
+  { id: 'goal_general', name: 'General Savings', targetAmount: 10000, icon: 'PiggyBank', color: '#10b981' },
+  { id: 'goal_emergency', name: 'Emergency Fund', targetAmount: 25000, icon: 'Shield', color: '#06b6d4' },
+  { id: 'goal_gadget', name: 'New Gadget / Phone', targetAmount: 30000, icon: 'Smartphone', color: '#8b5cf6' }
+];
+
 export const PAYMENT_METHODS = [
   { id: 'UPI', label: 'UPI / GPay / PhonePe', icon: 'Smartphone' },
   { id: 'Cash', label: 'Cash', icon: 'Banknote' },
@@ -307,12 +315,41 @@ export const formatAmount = (num, currency = '₹') => {
   return `${num < 0 ? '-' : ''}${currency}${formatted}`;
 };
 
+export const getStoredSavingsGoals = () => {
+  try {
+    const raw = localStorage.getItem(SAVINGS_GOALS_KEY);
+    if (!raw) {
+      localStorage.setItem(SAVINGS_GOALS_KEY, JSON.stringify(DEFAULT_SAVINGS_GOALS));
+      return DEFAULT_SAVINGS_GOALS;
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_SAVINGS_GOALS;
+  } catch (err) {
+    return DEFAULT_SAVINGS_GOALS;
+  }
+};
+
+export const saveStoredSavingsGoals = (goals) => {
+  try {
+    localStorage.setItem(SAVINGS_GOALS_KEY, JSON.stringify(goals));
+  } catch (err) {
+    console.error('Failed to save savings goals:', err);
+  }
+};
+
 // Export to CSV for Excel / Google Sheets
 export const exportTransactionsToCSV = (transactions) => {
-  const headers = ['ID', 'Date', 'Time', 'Type', 'Category', 'Amount', 'Payment Method', 'Note'];
+  const headers = ['ID', 'Date', 'Time', 'Type', 'Category / Goal', 'Amount', 'Payment Method', 'Note'];
+  const goals = getStoredSavingsGoals();
   const rows = transactions.map((t) => {
-    const cat = DEFAULT_CATEGORIES.find((c) => c.id === t.categoryId);
-    const catName = cat ? cat.name : t.categoryId;
+    let catName = t.categoryId;
+    if (t.type === 'saving') {
+      const g = goals.find(goal => goal.id === t.goalId || goal.id === t.categoryId);
+      catName = g ? `Savings: ${g.name}` : 'Savings';
+    } else {
+      const cat = DEFAULT_CATEGORIES.find((c) => c.id === t.categoryId);
+      catName = cat ? cat.name : t.categoryId;
+    }
     return [
       `"${t.id}"`,
       `"${t.date}"`,
@@ -330,7 +367,7 @@ export const exportTransactionsToCSV = (transactions) => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.setAttribute('href', url);
-  link.setAttribute('download', `Expense_Report_${new Date().toISOString().slice(0, 10)}.csv`);
+  link.setAttribute('download', `Rupya_Report_${new Date().toISOString().slice(0, 10)}.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -339,11 +376,12 @@ export const exportTransactionsToCSV = (transactions) => {
 // Export Full Backup JSON
 export const exportBackupJSON = () => {
   const data = {
-    version: '1.0',
+    version: '1.1',
     exportDate: new Date().toISOString(),
     transactions: getStoredTransactions(),
     budgets: getStoredBudgets(),
     recurring: getStoredRecurring(),
+    savingsGoals: getStoredSavingsGoals(),
     settings: getStoredSettings()
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -368,6 +406,9 @@ export const restoreFromJSON = (jsonString) => {
     }
     if (parsed.recurring) {
       saveStoredRecurring(parsed.recurring);
+    }
+    if (parsed.savingsGoals && Array.isArray(parsed.savingsGoals)) {
+      saveStoredSavingsGoals(parsed.savingsGoals);
     }
     if (parsed.settings) {
       saveStoredSettings(parsed.settings);
